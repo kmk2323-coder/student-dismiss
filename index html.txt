@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام المناداة الذكي - مدرسة عبدالله بن تركي</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+    
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+    <style>
+        :root {
+            --primary:#0a4d8c; --primary-light:#1a6bbf;
+            --accent:#f4a623; --success:#1db87e; --danger:#e84040;
+            --bg:#f0f4fa; --card:#fff; --text:#12233e;
+            --border:#d4e0f0; --shadow:0 4px 20px rgba(0,0,0,0.08);
+            --radius:12px;
+        }
+
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family:'Cairo', sans-serif; background:var(--bg); color:var(--text); direction: rtl; }
+
+        /* الهيكل العام */
+        .app-header { background: var(--primary); color: #fff; padding: 15px 25px; display: flex; justify-content: space-between; align-items: center; box-shadow: var(--shadow); }
+        .nav-tabs { display: flex; background: #fff; border-bottom: 1px solid var(--border); padding: 0 20px; position: sticky; top: 0; z-index: 100; overflow-x: auto; }
+        .nav-tab { padding: 15px 25px; cursor: pointer; font-weight: 600; color: var(--text); border-bottom: 3px solid transparent; transition: 0.3s; white-space: nowrap; }
+        .nav-tab.active { color: var(--primary); border-bottom-color: var(--primary); background: #f8faff; }
+
+        .screen { padding: 20px; max-width: 800px; margin: 0 auto; min-height: 70vh; }
+        .view-content { display: none; }
+        .view-content.active { display: block; }
+
+        /* المكونات */
+        .card { background: var(--card); border-radius: var(--radius); padding: 25px; box-shadow: var(--shadow); border: 1px solid var(--border); margin-bottom: 20px; }
+        .btn { padding: 12px 20px; border-radius: 8px; border: none; cursor: pointer; font-family: inherit; font-weight: 700; transition: 0.2s; display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 100%; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-success { background: var(--success); color: white; }
+        
+        input, select { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 15px; font-family: inherit; text-align: right; outline: none; }
+        input:focus { border-color: var(--primary); }
+
+        .child-card { border: 1px solid var(--border); padding: 15px; border-radius: 10px; margin-bottom: 10px; background: #fafbfc; cursor: pointer; transition: 0.2s; display: flex; justify-content: space-between; align-items: center; }
+        .child-card:hover { border-color: var(--primary); background: #f0f7ff; transform: scale(1.02); }
+        
+        .request-item { display: flex; align-items: center; justify-content: space-between; padding: 15px; border: 1px solid var(--border); border-radius: 10px; margin-bottom: 10px; background: #fff; border-right: 5px solid var(--accent); animation: slideIn 0.5s ease; }
+        @keyframes slideIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+
+        table { width: 100%; border-collapse: collapse; font-size: 0.8rem; margin-top: 10px; background: #fff; }
+        th, td { border: 1px solid #ddd; padding: 10px; text-align: right; }
+        th { background: #f8faff; color: var(--primary); }
+    </style>
+</head>
+<body>
+
+<header class="app-header">
+    <div>
+        <h1 style="font-size: 1.1rem;">نظام المناداة الموحد 🏫</h1>
+        <span style="font-size: 0.8rem; opacity: 0.9;">مدرسة عبدالله بن تركي الابتدائية للبنين</span>
+    </div>
+    <div id="clock" style="font-weight: 900; letter-spacing: 1px;">00:00:00</div>
+</header>
+
+<nav class="nav-tabs">
+    <div class="nav-tab active" id="tab-parent" onclick="showScreen('parent')">👪 ولي الأمر</div>
+    <div class="nav-tab" id="tab-teacher" onclick="showScreen('teacher')">👨‍🏫 المعلم <span id="notif-count" style="color:red; display:none;">●</span></div>
+    <div class="nav-tab" id="tab-admin" onclick="showScreen('admin')">🛡️ الإدارة</div>
+</nav>
+
+<main class="screen">
+    <div id="parent-screen" class="view-content active">
+        <div id="parent-login" class="card">
+            <h3>دخول ولي الأمر</h3>
+            <p style="margin-bottom:10px; font-size:0.8rem; color:#666;">يرجى إدخال الرقم الشخصي لاستعراض الأبناء</p>
+            <input type="number" id="parentQID" placeholder="أدخل الرقم الشخصي (QID)">
+            <button class="btn btn-primary" onclick="parentLogin()">دخول 🔑</button>
+        </div>
+        <div id="parent-portal" style="display:none;">
+            <div class="card">
+                <h3 id="parent-welcome">مرحباً بك</h3>
+                <p style="margin-bottom: 15px; color: #666;">اضغط على اسم الابن لإرسال نداء خروج للمعلم:</p>
+                <div id="children-container"></div>
+            </div>
+            <button class="btn" style="background:#ddd;" onclick="location.reload()">تسجيل الخروج</button>
+        </div>
+    </div>
+
+    <div id="teacher-screen" class="view-content">
+        <div id="teacher-login" class="card">
+            <h3>دخول المعلم</h3>
+            <input type="text" id="teacherUsername" placeholder="اسم المستخدم (Username)">
+            <button class="btn btn-primary" onclick="teacherLogin()">دخول لغرفة العمليات 🔑</button>
+        </div>
+        <div id="teacher-portal" style="display:none;">
+            <div class="card" style="background: var(--primary); color: white;">
+                <h3 id="teacher-welcome-msg">أهلاً بك</h3>
+                <p id="teacher-classes-list" style="font-size: 0.8rem; opacity: 0.9;"></p>
+            </div>
+            <div class="card">
+                <h4>طلبات المناداة الحالية 🔔</h4>
+                <div id="teacher-requests-container" style="margin-top:15px;"></div>
+            </div>
+            <button class="btn" style="background:#ddd;" onclick="location.reload()">تسجيل الخروج</button>
+        </div>
+    </div>
+
+    <div id="admin-screen" class="view-content">
+        <div class="card">
+            <h3>تحديث بيانات المدرسة</h3>
+            <div style="margin-bottom: 15px;">
+                <label>1. ملف الطلاب (اسم_الطالب، صف، QID_ولي_الأمر، اسم_ولي_الأمر):</label>
+                <input type="file" id="studentsExcel" accept=".xlsx, .xls" onchange="uploadData('students', event)">
+            </div>
+            <div>
+                <label>2. ملف المعلمين (اسم_المعلم، Username، الصفوف):</label>
+                <input type="file" id="teachersExcel" accept=".xlsx, .xls" onchange="uploadData('teachers', event)">
+            </div>
+        </div>
+        <div class="card">
+            <div style="display:flex; justify-content: space-between; align-items:center;">
+                <h3>سجل خروج الطلاب</h3>
+                <button class="btn btn-success" style="width:auto" onclick="downloadReport()">تصدير Excel 📊</button>
+            </div>
+            <div style="margin-top: 15px; overflow-x: auto;">
+                <table id="reportTable">
+                    <thead><tr><th>الطالب</th><th>الصف</th><th>الوقت</th><th>التاريخ</th></tr></thead>
+                    <tbody id="report-body"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</main>
+
+<audio id="notifSound" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3"></audio>
+
+<script>
+    // --- إعدادات Firebase ---
+    const firebaseConfig = {
+        apiKey: "AIzaSyDp7O3d3cNUMcdimLmocHvIvUsRJw_v2EQ",
+        authDomain: "student-dismiss.firebaseapp.com",
+        databaseURL: "https://student-dismiss-default-rtdb.europe-west1.firebasedatabase.app",
+        projectId: "student-dismiss",
+        storageBucket: "student-dismiss.firebasestorage.app",
+        messagingSenderId: "405450521674",
+        appId: "1:405450521674:web:b24a19f049664613233ab3"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    // --- نظام النطق الصوتي ---
+    function speakName(name, cls) {
+        if ('speechSynthesis' in window) {
+            const text = `تنبيه، خروج الطالب ${name} من الصف ${cls}`;
+            const msg = new SpeechSynthesisUtterance(text);
+            msg.lang = 'ar-SA';
+            msg.rate = 0.8;
+            window.speechSynthesis.speak(msg);
+        }
+    }
+
+    // --- وظائف الإدارة ---
+    function uploadData(type, event) {
+        const file = event.target.files[0];
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, {type: 'array'});
+            const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+            db.ref('school_config/' + type).set(jsonData)
+                .then(() => alert("تم تحديث البيانات بنجاح!"));
+        };
+        reader.readAsArrayBuffer(file);
+    }
+
+    // --- نظام ولي الأمر ---
+    function parentLogin() {
+        const qid = document.getElementById('parentQID').value;
+        if(!qid) return alert("يرجى إدخال الرقم الشخصي");
+
+        db.ref('school_config/students').once('value', (snap) => {
+            const students = snap.val() || [];
+            const myKids = students.filter(s => s.QID_ولي_الأمر == qid);
+
+            if(myKids.length > 0) {
+                document.getElementById('parent-login').style.display = 'none';
+                document.getElementById('parent-portal').style.display = 'block';
+                document.getElementById('parent-welcome').innerText = "مرحباً: " + myKids[0].اسم_ولي_الأمر;
+                
+                const container = document.getElementById('children-container');
+                container.innerHTML = "";
+                myKids.forEach(kid => {
+                    container.innerHTML += `
+                        <div class="child-card" onclick="sendCall('${kid.اسم_الطالب}', '${kid.صف}')">
+                            <div><strong>${kid.اسم_الطالب}</strong><br><small>الصف: ${kid.صف}</small></div>
+                            <span style="color:var(--primary)">ارسال نداء ←</span>
+                        </div>`;
+                });
+            } else { alert("الرقم الشخصي غير مسجل."); }
+        });
+    }
+
+    function sendCall(name, cls) {
+        db.ref('live_calls/' + cls).push({
+            name: name,
+            cls: cls,
+            time: new Date().toLocaleTimeString('ar-EG'),
+            date: new Date().toLocaleDateString('ar-EG'),
+            ts: Date.now()
+        });
+        alert("تم إرسال النداء للمعلم.");
+    }
+
+    // --- نظام المعلم ---
+    let myClasses = [];
+    function teacherLogin() {
+        const user = document.getElementById('teacherUsername').value;
+        db.ref('school_config/teachers').once('value', (snap) => {
+            const teachers = snap.val() || [];
+            const teacher = teachers.find(t => t.Username == user);
+
+            if(teacher) {
+                document.getElementById('teacher-login').style.display = 'none';
+                document.getElementById('teacher-portal').style.display = 'block';
+                document.getElementById('teacher-welcome-msg').innerText = "أهلاً أ/ " + teacher.اسم_المعلم;
+                myClasses = teacher.الصفوف.split(',').map(s => s.trim());
+                document.getElementById('teacher-classes-list').innerText = "صفوفك المتابعة: " + myClasses.join(' | ');
+
+                myClasses.forEach(cls => {
+                    db.ref('live_calls/' + cls).on('child_added', (newSnap) => {
+                        const call = newSnap.val();
+                        document.getElementById('notifSound').play();
+                        speakName(call.name, cls);
+                        refreshTeacherView();
+                    });
+                    db.ref('live_calls/' + cls).on('child_removed', refreshTeacherView);
+                });
+            } else { alert("المستخدم غير موجود."); }
+        });
+    }
+
+    function refreshTeacherView() {
+        const container = document.getElementById('teacher-requests-container');
+        container.innerHTML = "";
+        db.ref('live_calls').once('value', (snap) => {
+            const all = snap.val() || {};
+            myClasses.forEach(cls => {
+                if(all[cls]) {
+                    for(let id in all[cls]) {
+                        const c = all[cls][id];
+                        container.innerHTML += `
+                            <div class="request-item">
+                                <div><strong>${c.name}</strong> (${cls})</div>
+                                <button class="btn btn-success" style="width:auto" onclick="finishCall('${cls}', '${id}')">تم الخروج</button>
+                            </div>`;
+                    }
+                }
+            });
+        });
+    }
+
+    function finishCall(cls, id) {
+        db.ref('live_calls/' + cls + '/' + id).once('value', (snap) => {
+            db.ref('reports').push(snap.val());
+            db.ref('live_calls/' + cls + '/' + id).remove();
+        });
+    }
+
+    // --- التقارير ---
+    db.ref('reports').on('value', (snap) => {
+        const reports = snap.val();
+        const body = document.getElementById('report-body');
+        body.innerHTML = "";
+        for(let id in reports) {
+            const r = reports[id];
+            body.innerHTML += `<tr><td>${r.name}</td><td>${r.cls}</td><td>${r.time}</td><td>${r.date}</td></tr>`;
+        }
+    });
+
+    function downloadReport() {
+        db.ref('reports').once('value', (snap) => {
+            const ws = XLSX.utils.json_to_sheet(Object.values(snap.val() || {}));
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "المناداة");
+            XLSX.writeFile(wb, "تقرير_المدرسة.xlsx");
+        });
+    }
+
+    // --- عام ---
+    function showScreen(id) {
+        document.querySelectorAll('.view-content').forEach(v => v.classList.remove('active'));
+        document.querySelectorAll('.nav-tab').forEach(n => n.classList.remove('active'));
+        document.getElementById(id + '-screen').classList.add('active');
+        document.getElementById('tab-' + id).classList.add('active');
+    }
+
+    setInterval(() => { document.getElementById('clock').innerText = new Date().toLocaleTimeString('ar-EG'); }, 1000);
+</script>
+
+</body>
+</html>
