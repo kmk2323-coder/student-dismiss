@@ -5,240 +5,241 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>نظام مناداة الطلاب - مدرسة عبدالله بن تركي</title>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&family=Tajawal:wght@300;400;500;700;800&display=swap" rel="stylesheet">
-<!-- Firebase SDK -->
-<script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
-<!-- Excel Support -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
-:root {
-  --primary:#0a4d8c; --primary-light:#1a6bbf; --primary-glow:rgba(10,77,140,0.3);
-  --accent:#f4a623; --accent-soft:rgba(244,166,35,0.15);
-  --success:#1db87e; --success-soft:rgba(29,184,126,0.15);
-  --danger:#e84040; --danger-soft:rgba(232,64,64,0.12);
-  --bg:#f0f4fa; --card:#fff; --text:#12233e; --text-muted:#5a7299;
-  --border:#d4e0f0; --shadow:0 4px 24px rgba(10,60,120,.10);
-  --shadow-lg:0 12px 48px rgba(10,60,120,.18);
-  --radius:16px; --radius-sm:10px;
-}
-*{margin:0;padding:0;box-sizing:border-box;}
-body{font-family:'Cairo','Tajawal',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;}
+  :root {
+    --primary:#0a4d8c; --primary-light:#1a6bbf; --primary-glow:rgba(10,77,140,0.3);
+    --accent:#f4a623; --accent-soft:rgba(244,166,35,0.15);
+    --success:#1db87e; --success-soft:rgba(29,184,126,0.15);
+    --danger:#e84040; --danger-soft:rgba(232,64,64,0.12);
+    --bg:#f0f4fa; --card:#fff; --text:#12233e; --text-muted:#5a7299;
+    --border:#d4e0f0; --shadow:0 4px 24px rgba(10,60,120,.10);
+    --shadow-lg:0 12px 48px rgba(10,60,120,.18);
+    --radius:16px; --radius-sm:10px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:'Cairo','Tajawal',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;}
 
-/* ── OVERLAYS ── */
-.overlay{position:fixed;inset:0;background:rgba(5,20,50,.85);backdrop-filter:blur(7px);z-index:9000;display:flex;align-items:center;justify-content:center;padding:16px;}
-.overlay.hidden{display:none!important;}
-.login-box{background:#fff;border-radius:20px;padding:40px 36px;width:100%;max-width:420px;box-shadow:0 24px 64px rgba(0,0,0,.35);text-align:center;}
-.login-box .lb-icon{font-size:52px;margin-bottom:10px;}
-.login-box h2{font-size:1.3rem;font-weight:800;color:var(--primary);margin-bottom:4px;}
-.login-box p{font-size:.82rem;color:var(--text-muted);margin-bottom:24px;}
-.login-box .form-group{margin-bottom:14px;text-align:right;}
-.login-box .form-label{display:block;font-size:.83rem;font-weight:700;margin-bottom:6px;}
-.login-box .form-control{width:100%;padding:11px 14px;border-radius:var(--radius-sm);border:1.5px solid var(--border);font-family:inherit;font-size:.95rem;outline:none;direction:ltr;background:#f8faff;transition:all .2s;}
-.login-box .form-control:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-glow);background:#fff;}
-.login-box .err{color:var(--danger);font-size:.8rem;margin-top:8px;min-height:20px;font-weight:600;}
+  /* ── OVERLAY LOGIN ── */
+  .overlay{position:fixed;inset:0;background:rgba(5,20,50,.85);backdrop-filter:blur(7px);z-index:9000;display:flex;align-items:center;justify-content:center;padding:16px;}
+  .overlay.hidden{display:none!important;}
+  .login-box{background:#fff;border-radius:20px;padding:40px 36px;width:100%;max-width:420px;box-shadow:0 24px 64px rgba(0,0,0,.35);text-align:center;}
+  .login-box .lb-icon{font-size:52px;margin-bottom:10px;}
+  .login-box h2{font-size:1.3rem;font-weight:800;color:var(--primary);margin-bottom:4px;}
+  .login-box p{font-size:.82rem;color:var(--text-muted);margin-bottom:24px;}
+  .login-box .form-group{margin-bottom:14px;text-align:right;}
+  .login-box .form-label{display:block;font-size:.83rem;font-weight:700;margin-bottom:6px;}
+  .login-box .form-control{width:100%;padding:11px 14px;border-radius:var(--radius-sm);border:1.5px solid var(--border);font-family:inherit;font-size:.95rem;outline:none;direction:ltr;background:#f8faff;transition:all .2s;}
+  .login-box .form-control:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-glow);background:#fff;}
+  .login-box .err{color:var(--danger);font-size:.8rem;margin-top:8px;min-height:20px;font-weight:600;}
 
-/* ── HEADER ── */
-.app-header{background:linear-gradient(135deg,#0a4d8c 0%,#0d6efd 60%,#0a4d8c 100%);color:#fff;position:sticky;top:0;z-index:100;box-shadow:0 2px 20px rgba(10,60,120,.3);}
-.header-inner{display:flex;align-items:center;justify-content:space-between;padding:12px 28px;max-width:1400px;margin:0 auto;gap:16px;flex-wrap:wrap;}
-.header-logo{display:flex;align-items:center;gap:12px;}
-.header-logo .logo-icon{width:48px;height:48px;background:rgba(255,255,255,.18);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0;}
-.header-logo h1{font-size:1.1rem;font-weight:700;line-height:1.35;}
-.header-logo h1 span{display:block;font-size:.74rem;font-weight:400;opacity:.82;}
-.header-right{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
-.time-display{font-size:1.5rem;font-weight:900;letter-spacing:2px;}
-.status-badge{display:flex;align-items:center;gap:6px;padding:4px 14px;border-radius:100px;font-size:.78rem;font-weight:700;}
-.status-badge.active{background:rgba(29,184,126,.25);color:#6effc4;border:1px solid rgba(29,184,126,.4);}
-.status-badge.inactive{background:rgba(232,64,64,.2);color:#ff9999;border:1px solid rgba(232,64,64,.35);}
-.status-badge .dot{width:8px;height:8px;border-radius:50%;animation:pulse-dot 1.5s infinite;}
-.status-badge.active .dot{background:#1db87e;}
-.status-badge.inactive .dot{background:#e84040;animation:none;}
-@keyframes pulse-dot{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.5;transform:scale(1.3);}}
-.header-user{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.13);padding:6px 14px;border-radius:100px;font-size:.82rem;cursor:pointer;}
-.header-user:hover{background:rgba(255,255,255,.22);}
+  /* ── HEADER ── */
+  .app-header{background:linear-gradient(135deg,#0a4d8c 0%,#0d6efd 60%,#0a4d8c 100%);color:#fff;position:sticky;top:0;z-index:100;box-shadow:0 2px 20px rgba(10,60,120,.3);}
+  .header-inner{display:flex;align-items:center;justify-content:space-between;padding:12px 28px;max-width:1400px;margin:0 auto;gap:16px;flex-wrap:wrap;}
+  .header-logo{display:flex;align-items:center;gap:12px;}
+  .header-logo .logo-icon{width:48px;height:48px;background:rgba(255,255,255,.18);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0;}
+  .header-logo h1{font-size:1.1rem;font-weight:700;line-height:1.35;}
+  .header-logo h1 span{display:block;font-size:.74rem;font-weight:400;opacity:.82;}
+  .header-right{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+  .time-display{font-size:1.5rem;font-weight:900;letter-spacing:2px;font-feature-settings:"tnum";text-shadow:0 2px 8px rgba(0,0,0,.2);}
+  .system-status{display:flex;flex-direction:column;align-items:center;gap:4px;}
+  .status-badge{display:flex;align-items:center;gap:6px;padding:4px 14px;border-radius:100px;font-size:.78rem;font-weight:700;}
+  .status-badge.active{background:rgba(29,184,126,.25);color:#6effc4;border:1px solid rgba(29,184,126,.4);}
+  .status-badge.inactive{background:rgba(232,64,64,.2);color:#ff9999;border:1px solid rgba(232,64,64,.35);}
+  .status-badge .dot{width:8px;height:8px;border-radius:50%;animation:pulse-dot 1.5s infinite;}
+  .status-badge.active .dot{background:#1db87e;}
+  .status-badge.inactive .dot{background:#e84040;animation:none;}
+  @keyframes pulse-dot{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.5;transform:scale(1.3);}}
+  .status-time{font-size:.68rem;opacity:.75;}
+  .header-user{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.13);padding:6px 14px;border-radius:100px;font-size:.82rem;cursor:pointer;white-space:nowrap;}
+  .header-user:hover{background:rgba(255,255,255,.22);}
 
-/* ── NAV ── */
-.nav-tabs{display:flex;background:rgba(255,255,255,.08);padding:0 28px;max-width:1400px;margin:0 auto;overflow-x:auto;}
-.nav-tab{padding:11px 22px;cursor:pointer;font-size:.88rem;font-weight:600;color:rgba(255,255,255,.65);border-bottom:3px solid transparent;transition:all .25s;white-space:nowrap;display:flex;align-items:center;gap:7px;}
-.nav-tab:hover{color:#fff;}
-.nav-tab.active{color:#fff;border-bottom-color:var(--accent);}
-.nav-tab .badge{background:var(--danger);color:#fff;border-radius:100px;padding:1px 8px;font-size:.72rem;font-weight:800;}
+  /* ── NAV ── */
+  .nav-tabs{display:flex;background:rgba(255,255,255,.08);padding:0 28px;max-width:1400px;margin:0 auto;overflow-x:auto;}
+  .nav-tab{padding:11px 22px;cursor:pointer;font-size:.88rem;font-weight:600;color:rgba(255,255,255,.65);border-bottom:3px solid transparent;transition:all .25s;white-space:nowrap;display:flex;align-items:center;gap:7px;}
+  .nav-tab:hover{color:#fff;background:rgba(255,255,255,.07);}
+  .nav-tab.active{color:#fff;border-bottom-color:var(--accent);background:rgba(255,255,255,.1);}
+  .nav-tab .badge{background:var(--danger);color:#fff;border-radius:100px;padding:1px 8px;font-size:.72rem;font-weight:800;}
 
-/* ── SYNC STATUS ── */
-#syncStatusBar{display:none;position:fixed;top:0;left:0;right:0;z-index:9999;padding:7px 20px;font-size:.82rem;font-weight:700;color:#fff;text-align:center;align-items:center;justify-content:center;}
+  /* ── SCREENS ── */
+  .screen{display:none;padding:28px;max-width:1400px;margin:0 auto;}
+  .screen.active{display:block;}
 
-/* ── SCREENS ── */
-.screen{display:none;padding:28px;max-width:1400px;margin:0 auto;}
-.screen.active{display:block;}
+  /* ── CARD ── */
+  .card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);border:1px solid var(--border);overflow:hidden;}
+  .card-header{padding:18px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:12px;background:linear-gradient(90deg,rgba(10,77,140,.04) 0%,transparent 100%);}
+  .card-title{font-size:1rem;font-weight:700;color:var(--primary);display:flex;align-items:center;gap:9px;}
+  .card-body{padding:20px 22px;}
 
-/* ── CARD ── */
-.card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);border:1px solid var(--border);overflow:hidden;}
-.card-header{padding:18px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:12px;}
-.card-title{font-size:1rem;font-weight:700;color:var(--primary);display:flex;align-items:center;gap:9px;}
-.card-body{padding:20px 22px;}
+  /* ── STATS ── */
+  .stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:16px;margin-bottom:24px;}
+  .stat-card{background:var(--card);border-radius:var(--radius);padding:20px;border:1px solid var(--border);box-shadow:var(--shadow);display:flex;align-items:center;gap:16px;transition:transform .2s,box-shadow .2s;}
+  .stat-card:hover{transform:translateY(-2px);box-shadow:var(--shadow-lg);}
+  .stat-icon{width:52px;height:52px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;}
+  .stat-icon.blue{background:rgba(10,77,140,.1);} .stat-icon.green{background:rgba(29,184,126,.12);}
+  .stat-icon.orange{background:rgba(244,166,35,.12);} .stat-icon.red{background:rgba(232,64,64,.1);}
+  .stat-info h3{font-size:1.6rem;font-weight:900;color:var(--text);line-height:1;}
+  .stat-info p{font-size:.8rem;color:var(--text-muted);margin-top:3px;}
 
-/* ── STATS ── */
-.stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:16px;margin-bottom:24px;}
-.stat-card{background:var(--card);border-radius:var(--radius);padding:20px;border:1px solid var(--border);box-shadow:var(--shadow);display:flex;align-items:center;gap:16px;}
-.stat-icon{width:52px;height:52px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;}
-.stat-icon.blue{background:rgba(10,77,140,.1);} .stat-icon.green{background:rgba(29,184,126,.12);}
-.stat-icon.orange{background:rgba(244,166,35,.12);} .stat-icon.red{background:rgba(232,64,64,.1);}
-.stat-info h3{font-size:1.6rem;font-weight:900;color:var(--text);line-height:1;}
-.stat-info p{font-size:.8rem;color:var(--text-muted);margin-top:3px;}
+  /* ── REQUEST ITEMS ── */
+  .request-list{display:flex;flex-direction:column;gap:12px;}
+  .request-item{display:flex;align-items:center;gap:14px;padding:14px 18px;border-radius:var(--radius-sm);border:1.5px solid var(--border);transition:all .25s;position:relative;overflow:hidden;}
+  .request-item::before{content:'';position:absolute;right:0;top:0;bottom:0;width:4px;}
+  .request-item.pending{border-color:#f4a623;background:rgba(244,166,35,.04);}
+  .request-item.pending::before{background:#f4a623;}
+  .request-item.done{border-color:#1db87e;background:rgba(29,184,126,.04);}
+  .request-item.done::before{background:#1db87e;}
+  .request-item.expired{border-color:#bbb;background:rgba(0,0,0,.02);}
+  .request-item.expired::before{background:#bbb;}
 
-/* ── REQUESTS ── */
-.request-list{display:flex;flex-direction:column;gap:12px;}
-.request-item{display:flex;align-items:center;gap:14px;padding:14px 18px;border-radius:var(--radius-sm);border:1.5px solid var(--border);transition:all .25s;position:relative;overflow:hidden;}
-.request-item::before{content:'';position:absolute;right:0;top:0;bottom:0;width:4px;}
-.request-item.pending{border-color:#f4a623;background:rgba(244,166,35,.04);}
-.request-item.pending::before{background:#f4a623;}
-.request-item.done{border-color:#1db87e;background:rgba(29,184,126,.04);}
-.request-item.done::before{background:#1db87e;}
-.student-avatar{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;font-weight:700;color:#fff;}
-.request-info{flex:1;min-width:0;}
-.request-info .student-name{font-weight:700;font-size:1rem;}
-.request-info .request-meta{font-size:.78rem;color:var(--text-muted);margin-top:2px;display:flex;gap:10px;flex-wrap:wrap;}
-.request-actions{display:flex;gap:8px;flex-shrink:0;}
+  .student-avatar{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;font-weight:700;color:#fff;}
+  .request-info{flex:1;min-width:0;}
+  .request-info .student-name{font-weight:700;font-size:1rem;}
+  .request-info .request-meta{font-size:.78rem;color:var(--text-muted);margin-top:2px;display:flex;gap:10px;flex-wrap:wrap;}
+  .request-actions{display:flex;gap:8px;flex-shrink:0;}
 
-/* ── BUTTONS ── */
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:9px 18px;border-radius:var(--radius-sm);font-family:inherit;font-size:.85rem;font-weight:700;cursor:pointer;border:none;transition:all .2s;white-space:nowrap;}
-.btn:active{transform:scale(.96);} .btn:disabled{opacity:.45;cursor:not-allowed;}
-.btn-primary{background:var(--primary);color:#fff;}
-.btn-primary:hover:not(:disabled){background:var(--primary-light);}
-.btn-success{background:var(--success);color:#fff;}
-.btn-success:hover:not(:disabled){background:#17a871;}
-.btn-danger{background:var(--danger);color:#fff;}
-.btn-accent{background:var(--accent);color:#fff;}
-.btn-ghost{background:transparent;color:var(--text-muted);border:1.5px solid var(--border);}
-.btn-ghost:hover{border-color:var(--primary);color:var(--primary);}
-.btn-sm{padding:6px 13px;font-size:.78rem;}
-.btn-lg{padding:13px 28px;font-size:1rem;border-radius:12px;}
+  /* ── BUTTONS ── */
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:9px 18px;border-radius:var(--radius-sm);font-family:inherit;font-size:.85rem;font-weight:700;cursor:pointer;border:none;transition:all .2s;white-space:nowrap;}
+  .btn:active{transform:scale(.96);} .btn:disabled{opacity:.45;cursor:not-allowed;}
+  .btn-primary{background:var(--primary);color:#fff;box-shadow:0 4px 14px rgba(10,77,140,.3);}
+  .btn-primary:hover:not(:disabled){background:var(--primary-light);}
+  .btn-success{background:var(--success);color:#fff;box-shadow:0 4px 14px rgba(29,184,126,.3);}
+  .btn-success:hover:not(:disabled){background:#17a871;}
+  .btn-danger{background:var(--danger);color:#fff;box-shadow:0 4px 14px rgba(232,64,64,.25);}
+  .btn-accent{background:var(--accent);color:#fff;box-shadow:0 4px 14px rgba(244,166,35,.3);}
+  .btn-ghost{background:transparent;color:var(--text-muted);border:1.5px solid var(--border);}
+  .btn-ghost:hover{border-color:var(--primary);color:var(--primary);}
+  .btn-sm{padding:6px 13px;font-size:.78rem;}
+  .btn-lg{padding:13px 28px;font-size:1rem;border-radius:12px;}
 
-/* ── PILLS ── */
-.pill{display:inline-flex;align-items:center;gap:5px;padding:3px 11px;border-radius:100px;font-size:.75rem;font-weight:700;}
-.pill-pending{background:rgba(244,166,35,.15);color:#b07b00;}
-.pill-done{background:rgba(29,184,126,.15);color:#0d7a56;}
-.pill-expired{background:#eee;color:#888;}
+  /* ── PILLS ── */
+  .pill{display:inline-flex;align-items:center;gap:5px;padding:3px 11px;border-radius:100px;font-size:.75rem;font-weight:700;}
+  .pill-pending{background:rgba(244,166,35,.15);color:#b07b00;}
+  .pill-done{background:rgba(29,184,126,.15);color:#0d7a56;}
+  .pill-waiting{background:rgba(10,77,140,.1);color:var(--primary);}
+  .pill-expired{background:#eee;color:#888;}
 
-/* ── CLASSES GRID ── */
-.classes-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;margin-bottom:24px;}
-.class-btn{padding:18px 10px;border-radius:var(--radius-sm);border:2px solid var(--border);background:var(--card);cursor:pointer;text-align:center;transition:all .2s;font-family:inherit;position:relative;}
-.class-btn:hover{border-color:var(--primary);}
-.class-btn.selected{border-color:var(--primary);background:rgba(10,77,140,.08);}
-.class-btn .class-name{font-size:.95rem;font-weight:700;}
-.class-btn .class-count{font-size:.78rem;color:var(--text-muted);margin-top:4px;}
-.class-btn .class-pending{display:inline-block;margin-top:6px;background:#e84040;color:#fff;border-radius:100px;padding:2px 9px;font-size:.72rem;font-weight:800;}
+  /* ── CLASSES GRID ── */
+  .classes-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;margin-bottom:24px;}
+  .class-btn{padding:18px 10px;border-radius:var(--radius-sm);border:2px solid var(--border);background:var(--card);cursor:pointer;text-align:center;transition:all .2s;font-family:inherit;}
+  .class-btn:hover{border-color:var(--primary);background:rgba(10,77,140,.04);}
+  .class-btn.selected{border-color:var(--primary);background:rgba(10,77,140,.08);box-shadow:0 0 0 3px rgba(10,77,140,.12);}
+  .class-btn .class-name{font-size:.95rem;font-weight:700;color:var(--text);}
+  .class-btn .class-count{font-size:.78rem;color:var(--text-muted);margin-top:4px;}
+  .class-btn .class-pending{display:inline-block;margin-top:6px;background:#e84040;color:#fff;border-radius:100px;padding:2px 9px;font-size:.72rem;font-weight:800;}
 
-/* ── CHECKBOX CLASSES (للمعلم يختار أكثر من شعبة) ── */
-.class-check-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;margin:16px 0;}
-.class-check-item input{display:none;}
-.class-check-label{display:block;background:#fff;border:2px solid var(--border);padding:14px 10px;border-radius:10px;text-align:center;cursor:pointer;font-weight:700;transition:all .2s;font-size:.9rem;}
-.class-check-item input:checked + .class-check-label{background:var(--primary);color:#fff;border-color:var(--primary);transform:translateY(-2px);box-shadow:0 4px 12px rgba(10,77,140,.25);}
+  /* ── FORM CONTROLS ── */
+  .form-group{margin-bottom:18px;}
+  .form-label{display:block;font-size:.85rem;font-weight:700;color:var(--text);margin-bottom:7px;}
+  .form-control{width:100%;padding:12px 16px;border-radius:var(--radius-sm);border:1.5px solid var(--border);font-family:inherit;font-size:.95rem;color:var(--text);background:#f8faff;transition:all .2s;outline:none;direction:ltr;text-align:center;letter-spacing:2px;font-weight:600;}
+  .form-control:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-glow);background:#fff;}
+  .form-control::placeholder{letter-spacing:0;font-weight:400;color:#aab8cc;}
 
-/* ── FORM ── */
-.form-group{margin-bottom:18px;}
-.form-label{display:block;font-size:.85rem;font-weight:700;color:var(--text);margin-bottom:7px;}
-.form-control{width:100%;padding:12px 16px;border-radius:var(--radius-sm);border:1.5px solid var(--border);font-family:inherit;font-size:.95rem;color:var(--text);background:#f8faff;transition:all .2s;outline:none;}
-.form-control:focus{border-color:var(--primary);box-shadow:0 0 0 3px var(--primary-glow);}
+  /* ── PARENT NOTIF ── */
+  .parent-notif-box{border-radius:var(--radius-sm);padding:14px 18px;margin-bottom:10px;display:flex;align-items:center;gap:12px;font-size:.9rem;font-weight:600;}
+  .parent-notif-box.success{background:var(--success-soft);border:1px solid rgba(29,184,126,.3);color:#0a6644;}
+  .parent-notif-box.waiting{background:var(--accent-soft);border:1px solid rgba(244,166,35,.3);color:#8a5f00;}
 
-/* ── STUDENT SELECTOR ── */
-.student-selector{display:flex;flex-direction:column;gap:10px;}
-.student-select-item{display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:var(--radius-sm);border:2px solid var(--border);cursor:pointer;transition:all .2s;}
-.student-select-item:hover:not(.disabled){border-color:var(--primary-light);}
-.student-select-item.selected{border-color:var(--primary);background:rgba(10,77,140,.06);}
-.student-select-item.disabled{opacity:.55;cursor:not-allowed;}
-.student-check{width:22px;height:22px;border-radius:6px;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:13px;}
-.student-select-item.selected .student-check{background:var(--primary);border-color:var(--primary);color:#fff;}
+  /* ── STUDENT SELECTOR ── */
+  .student-selector{display:flex;flex-direction:column;gap:10px;}
+  .student-select-item{display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:var(--radius-sm);border:2px solid var(--border);cursor:pointer;transition:all .2s;background:var(--card);}
+  .student-select-item:hover:not(.disabled){border-color:var(--primary-light);}
+  .student-select-item.selected{border-color:var(--primary);background:rgba(10,77,140,.06);}
+  .student-select-item.disabled{opacity:.55;cursor:not-allowed;}
+  .student-check{width:22px;height:22px;border-radius:6px;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:13px;transition:all .2s;}
+  .student-select-item.selected .student-check{background:var(--primary);border-color:var(--primary);color:#fff;}
 
-/* ── UPLOAD ── */
-.upload-zone{border:2px dashed var(--border);border-radius:var(--radius-sm);padding:20px;text-align:center;cursor:pointer;transition:all .2s;background:#f8faff;display:block;}
-.upload-zone:hover{border-color:var(--primary);}
-.upload-zone input[type=file]{display:none;}
-.upload-zone .uz-icon{font-size:28px;margin-bottom:6px;}
-.upload-zone p{font-size:.84rem;color:var(--text-muted);}
-.upload-zone .uz-format{font-size:.72rem;color:#aab8cc;margin-top:4px;}
+  /* ── TABLE ── */
+  .data-table{width:100%;border-collapse:collapse;}
+  .data-table th{padding:12px 14px;text-align:right;font-size:.8rem;font-weight:700;color:var(--text-muted);border-bottom:2px solid var(--border);background:rgba(10,77,140,.03);}
+  .data-table td{padding:12px 14px;font-size:.88rem;border-bottom:1px solid var(--border);vertical-align:middle;}
+  .data-table tr:last-child td{border-bottom:none;}
+  .data-table tr:hover td{background:rgba(10,77,140,.025);}
 
-/* ── TABLE ── */
-.data-table{width:100%;border-collapse:collapse;}
-.data-table th{padding:12px 14px;text-align:right;font-size:.8rem;font-weight:700;color:var(--text-muted);border-bottom:2px solid var(--border);}
-.data-table td{padding:12px 14px;font-size:.88rem;border-bottom:1px solid var(--border);vertical-align:middle;}
+  /* ── FILE UPLOAD ── */
+  .upload-zone{border:2px dashed var(--border);border-radius:var(--radius-sm);padding:20px;text-align:center;cursor:pointer;transition:all .2s;background:#f8faff;display:block;}
+  .upload-zone:hover{border-color:var(--primary);background:rgba(10,77,140,.04);}
+  .upload-zone input[type=file]{display:none;}
+  .upload-zone .uz-icon{font-size:28px;margin-bottom:6px;}
+  .upload-zone p{font-size:.84rem;color:var(--text-muted);}
+  .upload-zone .uz-format{font-size:.72rem;color:#aab8cc;margin-top:4px;}
 
-/* ── LAYOUT ── */
-.two-col{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
-.section-title{font-size:1.05rem;font-weight:800;color:var(--primary);margin-bottom:14px;display:flex;align-items:center;gap:8px;}
-.section-title::after{content:'';flex:1;height:2px;background:linear-gradient(90deg,var(--border),transparent);border-radius:1px;}
-.sep{height:20px;} .divider{height:1px;background:var(--border);margin:20px 0;}
+  /* ── LAYOUT ── */
+  .two-col{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+  .section-title{font-size:1.05rem;font-weight:800;color:var(--primary);margin-bottom:14px;display:flex;align-items:center;gap:8px;}
+  .section-title::after{content:'';flex:1;height:2px;background:linear-gradient(90deg,var(--border),transparent);border-radius:1px;}
+  .sep{height:20px;} .divider{height:1px;background:var(--border);margin:20px 0;}
 
-/* ── SOUND WAVE ── */
-.sound-wave{display:flex;align-items:center;gap:3px;height:20px;}
-.sound-wave span{display:block;width:3px;background:var(--danger);border-radius:2px;animation:wave .9s ease-in-out infinite;}
-.sound-wave span:nth-child(2){animation-delay:.1s;}
-.sound-wave span:nth-child(3){animation-delay:.2s;}
-.sound-wave span:nth-child(4){animation-delay:.1s;}
-@keyframes wave{0%,100%{height:6px;}50%{height:18px;}}
+  /* ── SOUND WAVE ── */
+  .sound-wave{display:flex;align-items:center;gap:3px;height:20px;}
+  .sound-wave span{display:block;width:3px;background:var(--danger);border-radius:2px;animation:wave .9s ease-in-out infinite;}
+  .sound-wave span:nth-child(2){animation-delay:.1s;height:10px;}
+  .sound-wave span:nth-child(3){animation-delay:.2s;}
+  .sound-wave span:nth-child(4){animation-delay:.1s;height:10px;}
+  .sound-wave span:nth-child(5){animation-delay:0s;}
+  @keyframes wave{0%,100%{height:6px;}50%{height:18px;}}
 
-/* ── TOAST ── */
-.toast-container{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);z-index:9999;display:flex;flex-direction:column-reverse;gap:10px;pointer-events:none;width:90%;max-width:440px;}
-.toast{background:#12233e;color:#fff;padding:14px 20px;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.25);display:flex;align-items:center;gap:12px;animation:toast-in .35s cubic-bezier(.25,.8,.25,1) both;font-size:.9rem;font-weight:600;border-right:4px solid var(--accent);}
-.toast.success{border-right-color:var(--success);} .toast.danger{border-right-color:var(--danger);}
-@keyframes toast-in{from{opacity:0;transform:translateY(20px) scale(.96);}to{opacity:1;transform:translateY(0) scale(1);}}
+  /* ── COUNTDOWN ── */
+  .countdown-badge{display:inline-flex;align-items:center;gap:4px;background:rgba(232,64,64,.1);color:var(--danger);border-radius:100px;padding:2px 9px;font-size:.73rem;font-weight:700;}
 
-/* ── EMPTY / INACTIVE ── */
-.system-inactive-msg{text-align:center;padding:48px 24px;color:var(--text-muted);}
-.system-inactive-msg .big-icon{font-size:64px;margin-bottom:16px;}
-.system-inactive-msg h3{font-size:1.2rem;font-weight:700;margin-bottom:8px;}
-.empty-state{text-align:center;padding:40px 20px;color:var(--text-muted);}
-.empty-state .ei{font-size:48px;margin-bottom:12px;}
+  /* ── TOAST ── */
+  .toast-container{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);z-index:9999;display:flex;flex-direction:column-reverse;gap:10px;pointer-events:none;width:90%;max-width:440px;}
+  .toast{background:#12233e;color:#fff;padding:14px 20px;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.25);display:flex;align-items:center;gap:12px;animation:toast-in .35s cubic-bezier(.25,.8,.25,1) both;pointer-events:all;font-size:.9rem;font-weight:600;border-right:4px solid var(--accent);}
+  .toast.success{border-right-color:var(--success);} .toast.danger{border-right-color:var(--danger);}
+  @keyframes toast-in{from{opacity:0;transform:translateY(20px) scale(.96);}to{opacity:1;transform:translateY(0) scale(1);}}
 
-/* ── PARENT NOTIF ── */
-.parent-notif-box{border-radius:var(--radius-sm);padding:14px 18px;margin-bottom:10px;display:flex;align-items:center;gap:12px;font-size:.9rem;font-weight:600;}
-.parent-notif-box.success{background:var(--success-soft);border:1px solid rgba(29,184,126,.3);color:#0a6644;}
-.parent-notif-box.waiting{background:var(--accent-soft);border:1px solid rgba(244,166,35,.3);color:#8a5f00;}
+  /* ── INACTIVE / EMPTY ── */
+  .system-inactive-msg{text-align:center;padding:48px 24px;color:var(--text-muted);}
+  .system-inactive-msg .big-icon{font-size:64px;margin-bottom:16px;}
+  .system-inactive-msg h3{font-size:1.2rem;font-weight:700;color:var(--text);margin-bottom:8px;}
+  .system-inactive-msg p{font-size:.9rem;line-height:1.7;}
+  .empty-state{text-align:center;padding:40px 20px;color:var(--text-muted);}
+  .empty-state .ei{font-size:48px;margin-bottom:12px;}
+  .empty-state p{font-size:.9rem;}
 
-/* ── REPORT ── */
-.report-header{text-align:center;padding:24px;background:linear-gradient(135deg,var(--primary),#1a6bbf);color:#fff;border-radius:var(--radius) var(--radius) 0 0;}
+  /* ── REPORT ── */
+  .report-header{text-align:center;padding:24px;background:linear-gradient(135deg,var(--primary),#1a6bbf);color:#fff;border-radius:var(--radius) var(--radius) 0 0;}
+  .report-header h2{font-size:1.3rem;font-weight:800;}
+  .report-header p{font-size:.85rem;opacity:.8;margin-top:4px;}
 
-/* ── AVATARS ── */
-.av-blue{background:#1a6bbf;} .av-teal{background:#0d8484;} .av-purple{background:#6a3fbe;}
-.av-green{background:#1d8a4a;} .av-orange{background:#c46a00;} .av-pink{background:#c43e7a;}
+  /* ── AVATARS ── */
+  .av-blue{background:#1a6bbf;} .av-teal{background:#0d8484;} .av-purple{background:#6a3fbe;}
+  .av-green{background:#1d8a4a;} .av-orange{background:#c46a00;} .av-pink{background:#c43e7a;}
 
-/* ── COUNTDOWN ── */
-.countdown-badge{display:inline-flex;align-items:center;gap:4px;background:rgba(232,64,64,.1);color:var(--danger);border-radius:100px;padding:2px 9px;font-size:.73rem;font-weight:700;}
+  @media(max-width:900px){.two-col{grid-template-columns:1fr;}.screen{padding:16px;}.header-inner{padding:12px 16px;}.stats-row{grid-template-columns:1fr 1fr;}}
+  @media(max-width:500px){.stats-row{grid-template-columns:1fr;}.time-display{font-size:1.2rem;}}
 
-@media(max-width:900px){.two-col{grid-template-columns:1fr;}.screen{padding:16px;}}
-@media(max-width:500px){.stats-row{grid-template-columns:1fr 1fr;}.time-display{font-size:1.2rem;}}
-@media print{
-  .app-header,.nav-tabs,.toast-container,.overlay,#syncStatusBar{display:none!important;}
-  #screen-admin{display:block!important;}
-  .btn{display:none!important;}
-}
+  @media print{
+    .app-header,.nav-tabs,.toast-container,.overlay{display:none!important;}
+    #screen-admin{display:block!important;}
+    .btn,.card-header .btn{display:none!important;}
+    .report-header{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  }
 </style>
 </head>
 <body>
 
-<!-- SYNC STATUS BAR -->
-<div id="syncStatusBar"></div>
-
-<!-- ADMIN LOGIN OVERLAY -->
-<div class="overlay hidden" id="adminLoginOverlay">
+<!-- ══════ ADMIN LOGIN OVERLAY ══════ -->
+<div class="overlay" id="adminLoginOverlay">
   <div class="login-box">
     <div class="lb-icon">🛡️</div>
     <h2>دخول المدير</h2>
     <p>هذه الشاشة مخصصة لمدير النظام فقط</p>
     <div class="form-group">
       <label class="form-label">اسم المستخدم</label>
-      <input class="form-control" id="adminUser" placeholder="admin" autocomplete="off" onkeydown="if(event.key==='Enter')adminLogin()">
+      <input class="form-control" id="adminUser" placeholder="admin" autocomplete="off"
+             onkeydown="if(event.key==='Enter')adminLogin()">
     </div>
     <div class="form-group">
       <label class="form-label">كلمة المرور</label>
-      <input class="form-control" id="adminPass" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')adminLogin()">
+      <input class="form-control" id="adminPass" type="password" placeholder="••••••••"
+             onkeydown="if(event.key==='Enter')adminLogin()">
     </div>
     <div class="err" id="adminErr"></div>
     <button class="btn btn-primary btn-lg" style="width:100%;margin-top:6px" onclick="adminLogin()">🔑 تسجيل الدخول</button>
-    <button class="btn btn-ghost" style="width:100%;margin-top:10px" onclick="closeAdminLogin()">← إلغاء</button>
   </div>
 </div>
 
-<!-- TEACHER LOGIN OVERLAY -->
+<!-- ══════ TEACHER LOGIN OVERLAY ══════ -->
 <div class="overlay hidden" id="teacherLoginOverlay">
   <div class="login-box">
     <div class="lb-icon">👨‍🏫</div>
@@ -246,7 +247,8 @@ body{font-family:'Cairo','Tajawal',sans-serif;background:var(--bg);color:var(--t
     <p>أدخل اسم المستخدم الخاص بك</p>
     <div class="form-group">
       <label class="form-label">اسم المستخدم</label>
-      <input class="form-control" id="teacherUser" placeholder="teacher_username" autocomplete="off" onkeydown="if(event.key==='Enter')teacherLogin()">
+      <input class="form-control" id="teacherUser" placeholder="teacher_username" autocomplete="off"
+             onkeydown="if(event.key==='Enter')teacherLogin()">
     </div>
     <div class="err" id="teacherErr"></div>
     <button class="btn btn-primary btn-lg" style="width:100%;margin-top:6px" onclick="teacherLogin()">دخول</button>
@@ -254,10 +256,10 @@ body{font-family:'Cairo','Tajawal',sans-serif;background:var(--bg);color:var(--t
   </div>
 </div>
 
-<!-- TOAST -->
+<!-- ══════ TOAST ══════ -->
 <div class="toast-container" id="toastContainer"></div>
 
-<!-- HEADER -->
+<!-- ══════ HEADER ══════ -->
 <header class="app-header">
   <div class="header-inner">
     <div class="header-logo">
@@ -266,8 +268,9 @@ body{font-family:'Cairo','Tajawal',sans-serif;background:var(--bg);color:var(--t
     </div>
     <div class="header-right">
       <div class="time-display" id="clockDisplay">00:00:00</div>
-      <div class="status-badge inactive" id="systemStatusBadge">
-        <span class="dot"></span><span id="systemStatusText">النظام مغلق</span>
+      <div class="system-status">
+        <div class="status-badge inactive" id="systemStatusBadge"><span class="dot"></span><span id="systemStatusText">النظام مغلق</span></div>
+        <div class="status-time">11:30 ص — 2:30 م</div>
       </div>
       <div class="header-user hidden" id="headerUserInfo" onclick="logoutCurrent()">
         <span id="headerUserName">—</span> &nbsp;|&nbsp; خروج ↩
@@ -275,125 +278,26 @@ body{font-family:'Cairo','Tajawal',sans-serif;background:var(--bg);color:var(--t
     </div>
   </div>
   <nav class="nav-tabs">
-    <div class="nav-tab active" onclick="gotoTeacher()" data-screen="teacher">👨‍🏫 المعلم</div>
+    <div class="nav-tab active" onclick="showScreen('admin')" data-screen="admin">🛡️ الإدارة</div>
+    <div class="nav-tab" onclick="gotoTeacher()" data-screen="teacher">👨‍🏫 المعلم</div>
     <div class="nav-tab" onclick="showScreen('parent')" data-screen="parent">👪 ولي الأمر</div>
-    <div class="nav-tab" onclick="gotoAdmin()" data-screen="admin">🛡️ الإدارة</div>
   </nav>
 </header>
 
-<!-- ══ TEACHER SCREEN ══ -->
-<div class="screen active" id="screen-teacher">
-  <div id="teacherSystemOff" style="display:none">
-    <div class="card"><div class="system-inactive-msg">
-      <div class="big-icon">🔒</div>
-      <h3>النظام غير مفعل حالياً</h3>
-      <p>يعمل النظام من <b>11:30 ص</b> حتى <b>2:30 م</b><br>أو انتظر تفعيله من الإدارة</p>
-    </div></div>
-  </div>
-  <div id="teacherContent">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
-      <div class="section-title" style="margin-bottom:0">👨‍🏫 اختر الشعبة التي تتواجد بها</div>
-      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-        <div id="teacherWelcome" style="font-size:.9rem;color:var(--text-muted);font-weight:600"></div>
-        <button class="btn btn-sm btn-ghost" onclick="manualRefresh()">🔄 تحديث</button>
-      </div>
-    </div>
+<!-- ══════════════════════════════
+     ADMIN SCREEN
+══════════════════════════════ -->
+<div class="screen active" id="screen-admin">
 
-    <!-- اختيار شعبة واحدة للعرض -->
-    <div id="teacherClassesView">
-      <div class="classes-grid" id="classesGrid"></div>
-    </div>
-
-    <!-- بعد اختيار شعبة: عرض الطلبات -->
-    <div id="teacherClassView" style="display:none">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
-        <div class="section-title" style="margin-bottom:0">
-          <span id="selectedClassName">—</span>
-          <span style="font-size:.8rem;font-weight:500;color:var(--text-muted);margin-right:6px">— طلبات الخروج</span>
-        </div>
-        <button class="btn btn-sm btn-ghost" onclick="DB.selectedTeacherClass=null;document.getElementById('teacherClassView').style.display='none';renderTeacherScreen()">← تغيير الشعبة</button>
-      </div>
-      <div class="card">
-        <div class="card-header">
-          <div class="card-title">
-            <div class="sound-wave" id="soundWave" style="display:none"><span></span><span></span><span></span><span></span><span></span></div>
-            🔔 الطلبات الواردة
-          </div>
-          <div id="teacherPendingCount" class="pill pill-pending" style="display:none">0 طلب</div>
-        </div>
-        <div class="card-body">
-          <div class="request-list" id="teacherRequestList">
-            <div class="empty-state"><div class="ei">📭</div><p>لا توجد طلبات لهذا الصف</p></div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ══ PARENT SCREEN ══ -->
-<div class="screen" id="screen-parent">
-  <div id="parentSystemOff" style="display:none">
-    <div class="card" style="max-width:480px;margin:40px auto"><div class="system-inactive-msg">
-      <div class="big-icon">⏰</div>
-      <h3>النظام غير مفعل حالياً</h3>
-      <p>يمكنك طلب خروج أبنائك من <b>11:30 ص</b> حتى <b>2:30 م</b></p>
-    </div></div>
-  </div>
-  <div id="parentLogin" style="display:none">
-    <div class="card" style="max-width:440px;margin:40px auto">
-      <div class="card-body" style="padding:32px">
-        <div style="text-align:center;margin-bottom:28px">
-          <div style="width:72px;height:72px;background:linear-gradient(135deg,var(--primary),var(--primary-light));border-radius:20px;display:flex;align-items:center;justify-content:center;font-size:36px;margin:0 auto 14px;box-shadow:0 8px 24px rgba(10,77,140,.3)">👪</div>
-          <h2 style="font-size:1.2rem;font-weight:800;color:var(--primary)">بوابة ولي الأمر</h2>
-          <p style="font-size:.82rem;color:var(--text-muted);margin-top:4px">أدخل رقمك الشخصي لاستعراض أبنائك</p>
-        </div>
-        <div class="form-group">
-          <label class="form-label">الرقم الشخصي (هوية ولي الأمر)</label>
-          <input class="form-control" id="parentIdInput" placeholder="أدخل رقمك الشخصي" maxlength="12" inputmode="numeric" onkeydown="if(event.key==='Enter')parentLogin()">
-        </div>
-        <button class="btn btn-primary btn-lg" style="width:100%" onclick="parentLogin()">🔑 استعراض الأبناء</button>
-        <p style="text-align:center;margin-top:14px;font-size:.78rem;color:var(--text-muted)">الرقم مطابق لما هو مسجل في المدرسة</p>
-      </div>
-    </div>
-  </div>
-  <div id="parentDashboard" style="display:none;max-width:600px;margin:0 auto">
-    <div class="card" style="margin-bottom:20px">
-      <div class="card-header">
-        <div class="card-title">👋 مرحباً، <span id="parentWelcomeName"></span></div>
-        <div style="display:flex;gap:8px">
-          <button class="btn btn-sm btn-ghost" onclick="manualRefresh()">🔄 تحديث</button>
-          <button class="btn btn-sm btn-ghost" onclick="parentLogout()">تسجيل الخروج</button>
-        </div>
-      </div>
-      <div class="card-body">
-        <div id="parentNotifications"></div>
-        <div class="section-title" style="margin-top:4px">اختر من تريد إخراجه</div>
-        <div class="student-selector" id="parentStudentSelector"></div>
-        <div class="sep"></div>
-        <button class="btn btn-primary btn-lg" style="width:100%" onclick="submitExitRequest()" id="submitRequestBtn" disabled>📤 طلب الخروج</button>
-        <p style="text-align:center;margin-top:10px;font-size:.78rem;color:var(--text-muted)">سيصل الطلب إلى معلم الصف فوراً مع إشعار صوتي</p>
-      </div>
-    </div>
-    <div class="section-title">📋 سجل طلباتي</div>
-    <div class="card">
-      <div class="card-body">
-        <div id="parentRequestStatus"><div class="empty-state"><div class="ei">📭</div><p>لا توجد طلبات بعد</p></div></div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ══ ADMIN SCREEN ══ -->
-<div class="screen" id="screen-admin">
   <div class="stats-row">
     <div class="stat-card"><div class="stat-icon blue">📋</div><div class="stat-info"><h3 id="stat-total">0</h3><p>إجمالي الطلبات</p></div></div>
     <div class="stat-card"><div class="stat-icon orange">⏳</div><div class="stat-info"><h3 id="stat-pending">0</h3><p>في انتظار الخروج</p></div></div>
     <div class="stat-card"><div class="stat-icon green">✅</div><div class="stat-info"><h3 id="stat-done">0</h3><p>غادروا</p></div></div>
     <div class="stat-card"><div class="stat-icon red">👨‍👩‍👧</div><div class="stat-info"><h3 id="stat-parents">0</h3><p>أولياء نشطون</p></div></div>
   </div>
+
   <div class="two-col">
-    <!-- Left -->
+    <!-- Left: all requests -->
     <div>
       <div class="section-title">📋 جميع طلبات الخروج</div>
       <div class="card">
@@ -408,68 +312,66 @@ body{font-family:'Cairo','Tajawal',sans-serif;background:var(--bg);color:var(--t
         </div>
       </div>
     </div>
-    <!-- Right -->
-    <div>
-      <!-- Cloud Status -->
-      <div class="section-title">☁️ حالة قاعدة البيانات</div>
-      <div class="card" style="margin-bottom:20px">
-        <div class="card-body" id="storageStatusBody">جارٍ الاتصال...</div>
-      </div>
 
-      <!-- System Control -->
+    <!-- Right: controls -->
+    <div>
+      <!-- System control -->
       <div class="section-title">⚙️ إدارة النظام</div>
       <div class="card" style="margin-bottom:20px">
         <div class="card-body">
           <p style="font-size:.85rem;color:var(--text-muted);margin-bottom:14px;line-height:1.7">
-            يعمل النظام تلقائياً من <b>11:30 ص</b> حتى <b>2:30 م</b>.
+            يعمل النظام تلقائياً من <b>11:30 ص</b> حتى <b>2:30 م</b>.<br>
+            الضغط على <b>تشغيل</b> يفعّله فوراً لجميع المستخدمين بغض النظر عن الوقت.
           </p>
           <div style="display:flex;gap:10px;flex-wrap:wrap">
-            <button class="btn btn-success" onclick="setSystemActive(true)">▶ تشغيل</button>
-            <button class="btn btn-danger" onclick="setSystemActive(false)">⏹ إيقاف</button>
-            <button class="btn btn-accent" onclick="generateReport()">📊 تقرير</button>
-            <button class="btn btn-primary" onclick="manualRefresh()">🔄 تحديث</button>
+            <button class="btn btn-success" onclick="setSystemActive(true)">▶ تشغيل النظام</button>
+            <button class="btn btn-danger"  onclick="setSystemActive(false)">⏹ إيقاف النظام</button>
+            <button class="btn btn-accent"  onclick="generateReport()">📊 توليد التقرير</button>
           </div>
         </div>
       </div>
 
-      <!-- Upload Files — يدعم Excel و CSV -->
+      <!-- Upload files -->
       <div class="section-title">📁 رفع بيانات النظام</div>
       <div class="card" style="margin-bottom:20px">
         <div class="card-body">
           <p style="font-size:.82rem;color:var(--text-muted);margin-bottom:14px;">
-            يدعم ملفات <b>Excel (.xlsx)</b> و <b>CSV</b> للمعلمين والطلاب.
+            ارفع ملفات CSV لتحديث بيانات المعلمين والطلاب. حمّل القوالب للتعرف على الصيغة المطلوبة.
           </p>
+
           <!-- Teachers -->
           <div style="margin-bottom:18px">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
               <span style="font-weight:700;font-size:.88rem">👨‍🏫 بيانات المعلمين</span>
-              <button class="btn btn-sm btn-ghost" onclick="downloadTemplate('teachers')">⬇ قالب</button>
+              <button class="btn btn-sm btn-ghost" onclick="downloadTemplate('teachers')">⬇ قالب CSV</button>
             </div>
-            <label class="upload-zone">
-              <input type="file" accept=".csv,.xlsx,.xls" onchange="handleTeachersFile(this)">
+            <label class="upload-zone" id="teachersZone">
+              <input type="file" accept=".csv" id="teachersFile" onchange="handleTeachersFile(this)">
               <div class="uz-icon">📄</div>
-              <p id="teachersLabel">اضغط لرفع الملف (Excel أو CSV)</p>
-              <div class="uz-format">الأعمدة: username, name, الصفوف</div>
+              <p id="teachersLabel">اضغط لرفع الملف</p>
+              <div class="uz-format">الأعمدة: username, name, classes (مفصولة بـ |)</div>
             </label>
           </div>
+
           <!-- Students -->
           <div>
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
               <span style="font-weight:700;font-size:.88rem">👦 بيانات الطلاب وأولياء الأمور</span>
-              <button class="btn btn-sm btn-ghost" onclick="downloadTemplate('students')">⬇ قالب</button>
+              <button class="btn btn-sm btn-ghost" onclick="downloadTemplate('students')">⬇ قالب CSV</button>
             </div>
-            <label class="upload-zone">
-              <input type="file" accept=".csv,.xlsx,.xls" onchange="handleStudentsFile(this)">
+            <label class="upload-zone" id="studentsZone">
+              <input type="file" accept=".csv" id="studentsFile" onchange="handleStudentsFile(this)">
               <div class="uz-icon">👨‍👦</div>
-              <p id="studentsLabel">اضغط لرفع الملف (Excel أو CSV)</p>
-              <div class="uz-format">الأعمدة: اسم_الطالب, صف, QID_ولي_الأمر, اسم_ولي_الأمر</div>
+              <p id="studentsLabel">اضغط لرفع الملف</p>
+              <div class="uz-format">الأعمدة: student_id, student_name, class_id, parent_name, parent_id, parent_phone</div>
             </label>
           </div>
+
           <div id="uploadStatus" style="margin-top:12px"></div>
         </div>
       </div>
 
-      <!-- Classes Status -->
+      <!-- Classes status -->
       <div class="section-title">🏫 حالة الصفوف</div>
       <div class="card">
         <div class="card-body" style="padding:14px">
@@ -503,391 +405,386 @@ body{font-family:'Cairo','Tajawal',sans-serif;background:var(--bg);color:var(--t
           </table>
         </div>
         <div style="margin-top:16px">
-          <button class="btn btn-primary" onclick="printReport()">🖨️ طباعة</button>
+          <button class="btn btn-primary" onclick="printReport()">🖨️ طباعة التقرير</button>
         </div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- Audio Bell -->
-<audio id="bellAudio" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" preload="auto"></audio>
+<!-- ══════════════════════════════
+     TEACHER SCREEN
+══════════════════════════════ -->
+<div class="screen" id="screen-teacher">
+  <div id="teacherSystemOff" style="display:none">
+    <div class="card"><div class="system-inactive-msg">
+      <div class="big-icon">🔒</div>
+      <h3>النظام غير مفعل حالياً</h3>
+      <p>يعمل النظام من <b>11:30 ص</b> حتى <b>2:30 م</b><br>أو انتظر تفعيله من الإدارة</p>
+    </div></div>
+  </div>
 
+  <div id="teacherContent">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+      <div class="section-title" style="margin-bottom:0">👨‍🏫 صفوفك الدراسية</div>
+      <div id="teacherWelcome" style="font-size:.9rem;color:var(--text-muted);font-weight:600"></div>
+    </div>
+    <div class="classes-grid" id="classesGrid"></div>
+
+    <div id="teacherClassView" style="display:none">
+      <div class="section-title">
+        <span id="selectedClassName">—</span>
+        <span style="font-size:.8rem;font-weight:500;color:var(--text-muted);margin-right:6px">— طلبات الخروج</span>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">
+            <div class="sound-wave" id="soundWave" style="display:none"><span></span><span></span><span></span><span></span><span></span></div>
+            🔔 الطلبات الواردة
+          </div>
+          <div id="teacherPendingCount" class="pill pill-pending" style="display:none">0 طلب</div>
+        </div>
+        <div class="card-body">
+          <div class="request-list" id="teacherRequestList">
+            <div class="empty-state"><div class="ei">📭</div><p>لا توجد طلبات لهذا الصف</p></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════
+     PARENT SCREEN
+══════════════════════════════ -->
+<div class="screen" id="screen-parent">
+  <div id="parentSystemOff" style="display:none">
+    <div class="card" style="max-width:480px;margin:40px auto"><div class="system-inactive-msg">
+      <div class="big-icon">⏰</div>
+      <h3>النظام غير مفعل حالياً</h3>
+      <p>يمكنك طلب خروج أبنائك من <b>11:30 ص</b> حتى <b>2:30 م</b></p>
+    </div></div>
+  </div>
+
+  <div id="parentLogin" style="display:none">
+    <div class="card" style="max-width:440px;margin:40px auto">
+      <div class="card-body" style="padding:32px">
+        <div style="text-align:center;margin-bottom:28px">
+          <div style="width:72px;height:72px;background:linear-gradient(135deg,var(--primary),var(--primary-light));border-radius:20px;display:flex;align-items:center;justify-content:center;font-size:36px;margin:0 auto 14px;box-shadow:0 8px 24px rgba(10,77,140,.3)">👪</div>
+          <h2 style="font-size:1.2rem;font-weight:800;color:var(--primary)">بوابة ولي الأمر</h2>
+          <p style="font-size:.82rem;color:var(--text-muted);margin-top:4px">سجّل دخولك لطلب إخراج أبنائك</p>
+        </div>
+        <div class="form-group">
+          <label class="form-label">الرقم الشخصي (هوية ولي الأمر)</label>
+          <input class="form-control" id="parentIdInput" placeholder="أدخل رقمك الشخصي" maxlength="12">
+        </div>
+        <div class="form-group">
+          <label class="form-label">رقم الهاتف المعتمد في المدرسة</label>
+          <input class="form-control" type="tel" id="parentPhoneInput" placeholder="05xxxxxxxx" maxlength="10">
+        </div>
+        <button class="btn btn-primary btn-lg" style="width:100%" onclick="parentLogin()">🔑 تسجيل الدخول</button>
+        <p style="text-align:center;margin-top:14px;font-size:.78rem;color:var(--text-muted)">البيانات مطابقة لما هو مسجل في المدرسة</p>
+      </div>
+    </div>
+  </div>
+
+  <div id="parentDashboard" style="display:none;max-width:600px;margin:0 auto">
+    <div class="card" style="margin-bottom:20px">
+      <div class="card-header">
+        <div class="card-title">👋 مرحباً، <span id="parentWelcomeName"></span></div>
+        <button class="btn btn-sm btn-ghost" onclick="parentLogout()">تسجيل الخروج</button>
+      </div>
+      <div class="card-body">
+        <div id="parentNotifications"></div>
+        <div class="section-title" style="margin-top:4px">اختر من تريد إخراجه</div>
+        <div class="student-selector" id="parentStudentSelector"></div>
+        <div class="sep"></div>
+        <button class="btn btn-primary btn-lg" style="width:100%" onclick="submitExitRequest()" id="submitRequestBtn" disabled>📤 طلب الخروج</button>
+        <p style="text-align:center;margin-top:10px;font-size:.78rem;color:var(--text-muted)">سيصل الطلب إلى معلم الصف فوراً مع إشعار صوتي</p>
+      </div>
+    </div>
+
+    <div class="section-title">📋 سجل طلباتي</div>
+    <div class="card">
+      <div class="card-body">
+        <div id="parentRequestStatus"><div class="empty-state"><div class="ei">📭</div><p>لا توجد طلبات بعد</p></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════
+     JAVASCRIPT
+══════════════════════════════ -->
 <script>
-/* ════════════════════════════════════════
-   FIREBASE CONFIG
-   ════════════════════════════════════════ */
-const FIREBASE_CONFIG = {
-  apiKey: "AIzaSyDp7O3d3cNUMcdimLmocHvIvUsRJw_v2EQ",
-  authDomain: "student-dismiss.firebaseapp.com",
-  databaseURL: "https://student-dismiss-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "student-dismiss",
-  storageBucket: "student-dismiss.firebasestorage.app",
-  messagingSenderId: "405450521674",
-  appId: "1:405450521674:web:b24a19f049664613233ab3"
-};
-
-firebase.initializeApp(FIREBASE_CONFIG);
-const FDB = firebase.database();
-
-/* ════════════════════════════════════════
+/* ─────────────────────────────────────
    DATA MODEL
-   ════════════════════════════════════════ */
+───────────────────────────────────── */
 const DB = {
   systemActive:   false,
   manualOverride: false,
   adminLoggedIn:  false,
   loggedTeacher:  null,
   loggedParent:   null,
-  selectedTeacherClass: null,
-  teachers: [],
-  classes:  [],
-  parents:  [],
+
+  teachers: [
+    { username:'teacher1', name:'أ. محمد السالم',    classes:['1a','1b'] },
+    { username:'teacher2', name:'أ. خالد العمري',    classes:['2a'] },
+    { username:'teacher3', name:'أ. سعد الرشيدي',   classes:['2b','3a'] },
+    { username:'teacher4', name:'أ. فيصل القحطاني', classes:['3b'] },
+  ],
+
+  classes: [
+    { id:'1a', name:'الأول أ',   students:28 },
+    { id:'1b', name:'الأول ب',   students:26 },
+    { id:'2a', name:'الثاني أ',  students:30 },
+    { id:'2b', name:'الثاني ب',  students:27 },
+    { id:'3a', name:'الثالث أ',  students:29 },
+    { id:'3b', name:'الثالث ب',  students:25 },
+  ],
+
+  parents: [
+    { id:'1234567890', phone:'0501234567', name:'أحمد بن سعد العتيبي',
+      children:[
+        { id:'s1', name:'نواف أحمد العتيبي',     classId:'1a' },
+        { id:'s2', name:'ريان أحمد العتيبي',      classId:'3a' },
+      ]},
+    { id:'9876543210', phone:'0559876543', name:'سلطان بن علي القحطاني',
+      children:[
+        { id:'s3', name:'فارس سلطان القحطاني',    classId:'2b' },
+      ]},
+    { id:'1111111111', phone:'0511111111', name:'محمد بن ناصر الدوسري',
+      children:[
+        { id:'s4', name:'عمر محمد الدوسري',       classId:'1b' },
+        { id:'s5', name:'عبدالرحمن محمد الدوسري', classId:'2a' },
+        { id:'s6', name:'يوسف محمد الدوسري',      classId:'3b' },
+      ]},
+  ],
+
   requests: [],
   nextReqId: 1,
+  selectedTeacherClass: null,
 };
 
 const AVATARS = ['av-blue','av-teal','av-purple','av-green','av-orange','av-pink'];
-const getAv   = id => AVATARS[parseInt(String(id).replace(/\D/g,'') || '0') % AVATARS.length];
+const getAv   = id => AVATARS[parseInt(id.replace(/\D/g,'') || '0') % AVATARS.length];
 const padZ    = n  => String(n).padStart(2,'0');
-const teacherForClass = cid => { const t = DB.teachers.find(t => t.classes && t.classes.includes(cid)); return t ? t.name : '—'; };
+const teacherForClass = cid => { const t = DB.teachers.find(t=>t.classes.includes(cid)); return t ? t.name : '—'; };
 
-/* ════════════════════════════════════════
-   FIREBASE REALTIME SYNC
-   ════════════════════════════════════════ */
-function initFirebase() {
-  showSyncStatus('جارٍ الاتصال…', 'loading');
-
-  // استماع للبيانات الثابتة
-  FDB.ref('school_config/teachers').on('value', snap => {
-    const raw = snap.val();
-    if (raw) {
-      DB.teachers = Object.values(raw).map(t => ({
-        username: String(t.username || t.Username || '').toLowerCase().trim(),
-        name    : t.name || t.اسم_المعلم || t.Name || '',
-        classes : parseClasses(t.صفوف || t.الصفوف || t.classes || t.class || ''),
-      }));
-      if (DB.loggedTeacher) {
-        const fresh = DB.teachers.find(t => t.username === DB.loggedTeacher.username);
-        if (fresh) DB.loggedTeacher = fresh;
-      }
-    }
-    renderStorageStatus();
-    if (document.getElementById('screen-admin').classList.contains('active')) renderAdminScreen();
-  });
-
-  FDB.ref('school_config/students').on('value', snap => {
-    const raw = snap.val();
-    if (raw) {
-      // بناء قائمة parents من بيانات الطلاب
-      const parentMap = {};
-      Object.values(raw).forEach(s => {
-        const pid = String(s.QID_ولي_الأمر || s.qid || s.QID || s['الرقم الشخصي'] || s.parent_id || '').trim();
-        if (!pid) return;
-        if (!parentMap[pid]) parentMap[pid] = { id: pid, name: s.اسم_ولي_الأمر || s.parent_name || '', children: [] };
-        parentMap[pid].children.push({
-          id     : s.student_id || s.id || ('s' + Math.random().toString(36).slice(2,7)),
-          name   : s.اسم_الطالب || s.student_name || s.name || '',
-          classId: String(s.صف || s.class_id || s.class || '').trim(),
-        });
-      });
-      DB.parents = Object.values(parentMap);
-
-      // بناء قائمة الصفوف من بيانات الطلاب
-      const classMap = {};
-      Object.values(raw).forEach(s => {
-        const cid = String(s.صف || s.class_id || '').trim();
-        if (!cid) return;
-        if (!classMap[cid]) classMap[cid] = { id: cid, name: cid, students: 0 };
-        classMap[cid].students++;
-      });
-      DB.classes = Object.values(classMap).sort((a,b) => a.id.localeCompare(b.id));
-
-      if (DB.loggedParent) {
-        const fresh = DB.parents.find(p => p.id === DB.loggedParent.id);
-        if (fresh) DB.loggedParent = fresh;
-      }
-    }
-    renderStorageStatus();
-  });
-
-  // استماع للطلبات الحية — فوري من Firebase
-  FDB.ref('live_calls').on('value', snap => {
-    const raw = snap.val() || {};
-    // تحويل هيكل Firebase لهيكل DB.requests
-    const newReqs = [];
-    Object.keys(raw).forEach(classId => {
-      Object.keys(raw[classId]).forEach(reqKey => {
-        const r = raw[classId][reqKey];
-        const existing = DB.requests.find(x => x.firebaseKey === reqKey);
-        newReqs.push({
-          id              : reqKey,
-          firebaseKey     : reqKey,
-          studentId       : r.studentId || reqKey,
-          studentName     : r.name || r.studentName || '',
-          classId         : classId,
-          className       : classId,
-          parentId        : r.parentId || '',
-          parentName      : r.parentName || '',
-          requestTime     : r.ts || r.requestTime || Date.now(),
-          exitTime        : r.exitTime || null,
-          status          : r.status || 'pending',
-          confirmedByTeacher: r.confirmedByTeacher || false,
-        });
-      });
-    });
-
-    // كشف الطلبات الجديدة وتشغيل الصوت
-    newReqs.filter(r => r.status === 'pending').forEach(r => {
-      const wasKnown = DB.requests.find(x => x.id === r.id);
-      if (!wasKnown) {
-        playLoudAlert();
-        speakArabic(r.studentName, r.classId);
-        if (DB.loggedTeacher && DB.loggedTeacher.classes.includes(r.classId)) {
-          showToast(`🔔 طلب خروج: ${r.studentName} — ${r.classId}`, 'danger', '🔔');
-        }
-      }
-    });
-
-    DB.requests = newReqs;
-    updateStats();
-    if (document.getElementById('screen-teacher').classList.contains('active') && DB.selectedTeacherClass)
-      renderTeacherClassView();
-    if (document.getElementById('screen-admin').classList.contains('active'))
-      renderAdminRequestList();
-    if (DB.loggedParent && document.getElementById('screen-parent').classList.contains('active'))
-      renderParentDashboard();
-  });
-
-  // استماع لحالة النظام
-  FDB.ref('system_control/manual').on('value', snap => {
-    const manual = snap.val();
-    if (manual !== null) {
-      DB.systemActive   = manual;
-      DB.manualOverride = true;
-    }
-    applySystemStatus();
-  });
-
-  showSyncStatus('متصل ✅', 'ok');
-}
-
-/* ════════════════════════════════════════
-   CLOCK & SYSTEM STATUS
-   ════════════════════════════════════════ */
-function updateClock() {
+/* ─────────────────────────────────────
+   CLOCK & SYSTEM
+───────────────────────────────────── */
+function updateClock(){
   const now = new Date();
   document.getElementById('clockDisplay').textContent =
     `${padZ(now.getHours())}:${padZ(now.getMinutes())}:${padZ(now.getSeconds())}`;
-  if (!DB.manualOverride) {
-    const tot = now.getHours() * 60 + now.getMinutes();
+
+  if(!DB.manualOverride){
+    const tot = now.getHours()*60 + now.getMinutes();
     const should = tot >= (11*60+30) && tot < (14*60+30);
-    if (should !== DB.systemActive) { DB.systemActive = should; applySystemStatus(); }
+    if(should !== DB.systemActive){ DB.systemActive = should; applySystemStatus(); }
   }
 }
 
-function applySystemStatus() {
+function applySystemStatus(){
   const badge = document.getElementById('systemStatusBadge');
   badge.className = 'status-badge ' + (DB.systemActive ? 'active' : 'inactive');
   document.getElementById('systemStatusText').textContent = DB.systemActive ? 'النظام نشط' : 'النظام مغلق';
-  document.getElementById('teacherSystemOff').style.display  = DB.systemActive ? 'none' : 'block';
-  document.getElementById('teacherContent').style.display    = DB.systemActive ? 'block' : 'none';
-  document.getElementById('parentSystemOff').style.display   = DB.systemActive ? 'none' : 'block';
-  if (DB.systemActive) {
+
+  document.getElementById('teacherSystemOff').style.display = DB.systemActive ? 'none' : 'block';
+  document.getElementById('teacherContent').style.display   = DB.systemActive ? 'block': 'none';
+
+  document.getElementById('parentSystemOff').style.display  = DB.systemActive ? 'none' : 'block';
+  if(DB.systemActive){
     document.getElementById('parentLogin').style.display     = DB.loggedParent ? 'none' : 'block';
-    document.getElementById('parentDashboard').style.display = DB.loggedParent ? 'block' : 'none';
+    document.getElementById('parentDashboard').style.display = DB.loggedParent ? 'block': 'none';
   } else {
     document.getElementById('parentLogin').style.display     = 'none';
     document.getElementById('parentDashboard').style.display = 'none';
   }
 }
 
-function setSystemActive(val) {
-  DB.systemActive = val; DB.manualOverride = true;
-  FDB.ref('system_control/manual').set(val);
+/* ── تشغيل يدوي من الإدارة — يتجاهل قيود الوقت تماماً ── */
+function setSystemActive(val){
+  DB.systemActive    = val;
+  DB.manualOverride  = true;
   applySystemStatus();
-  showToast(val ? '✅ تم تشغيل النظام' : '⛔ تم إيقاف النظام', val ? 'success' : 'danger');
-  if (!val) generateReport();
+  showToast(
+    val ? '✅ تم تشغيل النظام — مفعّل الآن لجميع المستخدمين'
+        : '⛔ تم إيقاف النظام',
+    val ? 'success' : 'danger', val ? '▶' : '⏹'
+  );
+  if(!val) generateReport();
 }
 
-/* ════════════════════════════════════════
-   AUTH
-   ════════════════════════════════════════ */
-function gotoAdmin() {
-  if (DB.adminLoggedIn) { showScreen('admin'); return; }
-  document.getElementById('adminLoginOverlay').classList.remove('hidden');
-  document.getElementById('adminUser').value = '';
-  document.getElementById('adminPass').value = '';
-  document.getElementById('adminErr').textContent = '';
-  setTimeout(() => document.getElementById('adminUser').focus(), 100);
-}
-function closeAdminLogin() { document.getElementById('adminLoginOverlay').classList.add('hidden'); }
-
-function adminLogin() {
+/* ─────────────────────────────────────
+   AUTH — ADMIN
+───────────────────────────────────── */
+function adminLogin(){
   const u = document.getElementById('adminUser').value.trim();
   const p = document.getElementById('adminPass').value;
-  if (u === 'admin' && p === 'admin123') {
+  const errEl = document.getElementById('adminErr');
+  if(u === 'admin' && p === 'admin123'){
     DB.adminLoggedIn = true;
     document.getElementById('adminLoginOverlay').classList.add('hidden');
     showHeaderUser('المدير 🛡️');
-    showScreen('admin');
     renderAdminScreen();
     showToast('مرحباً بك يا مدير النظام', 'success', '🛡️');
   } else {
-    const e = document.getElementById('adminErr');
-    e.textContent = '❌ بيانات غير صحيحة';
+    errEl.textContent = '❌ اسم المستخدم أو كلمة المرور غير صحيحة';
     document.getElementById('adminPass').value = '';
-    setTimeout(() => e.textContent = '', 3000);
+    setTimeout(() => errEl.textContent = '', 3000);
   }
 }
 
-function gotoTeacher() {
-  if (DB.loggedTeacher) { showScreen('teacher'); return; }
+/* ─────────────────────────────────────
+   AUTH — TEACHER
+───────────────────────────────────── */
+function gotoTeacher(){
+  if(DB.loggedTeacher){ showScreen('teacher'); return; }
   document.getElementById('teacherLoginOverlay').classList.remove('hidden');
   document.getElementById('teacherUser').value = '';
   document.getElementById('teacherErr').textContent = '';
   setTimeout(() => document.getElementById('teacherUser').focus(), 100);
 }
-function closeTeacherLogin() { document.getElementById('teacherLoginOverlay').classList.add('hidden'); }
 
-function teacherLogin() {
+function teacherLogin(){
   const u = document.getElementById('teacherUser').value.trim().toLowerCase();
-  const teacher = DB.teachers.find(t => t.username === u);
-  if (!teacher) {
-    const e = document.getElementById('teacherErr');
-    e.textContent = '❌ اسم المستخدم غير موجود';
-    setTimeout(() => e.textContent = '', 3000);
+  const teacher = DB.teachers.find(t => t.username.toLowerCase() === u);
+  const errEl = document.getElementById('teacherErr');
+  if(!teacher){
+    errEl.textContent = '❌ اسم المستخدم غير موجود في النظام';
+    setTimeout(() => errEl.textContent = '', 3000);
     return;
   }
   DB.loggedTeacher = teacher;
   document.getElementById('teacherLoginOverlay').classList.add('hidden');
   showHeaderUser(teacher.name + ' 👨‍🏫');
   showScreen('teacher');
-  renderTeacherScreen();
   showToast(`مرحباً ${teacher.name}`, 'success', '👨‍🏫');
 }
 
-function logoutCurrent() {
-  DB.loggedTeacher = null; DB.selectedTeacherClass = null;
-  DB.adminLoggedIn = false;
-  document.getElementById('headerUserInfo').classList.add('hidden');
-  document.getElementById('teacherClassView').style.display = 'none';
-  showToast('تم تسجيل الخروج', 'default', '👋');
+function closeTeacherLogin(){
+  document.getElementById('teacherLoginOverlay').classList.add('hidden');
 }
 
-function showHeaderUser(name) {
+/* ─────────────────────────────────────
+   HEADER USER
+───────────────────────────────────── */
+function showHeaderUser(name){
   const el = document.getElementById('headerUserInfo');
   el.classList.remove('hidden');
   document.getElementById('headerUserName').textContent = name;
 }
+function logoutCurrent(){
+  if(DB.loggedTeacher){ DB.loggedTeacher = null; DB.selectedTeacherClass = null; }
+  document.getElementById('headerUserInfo').classList.add('hidden');
+  showToast('تم تسجيل الخروج', 'default', '👋');
+}
 
-/* ════════════════════════════════════════
+/* ─────────────────────────────────────
    NAVIGATION
-   ════════════════════════════════════════ */
-function showScreen(id) {
+───────────────────────────────────── */
+function showScreen(id){
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-  document.getElementById('screen-' + id).classList.add('active');
+  document.getElementById('screen-'+id).classList.add('active');
   const tab = document.querySelector(`.nav-tab[data-screen="${id}"]`);
-  if (tab) tab.classList.add('active');
-  if (id === 'teacher') renderTeacherScreen();
-  if (id === 'parent')  renderParentScreen();
-  if (id === 'admin')   renderAdminScreen();
+  if(tab) tab.classList.add('active');
+  if(id==='teacher') renderTeacherScreen();
+  if(id==='parent')  renderParentScreen();
+  if(id==='admin')   renderAdminScreen();
 }
 
-/* ════════════════════════════════════════
+/* ─────────────────────────────────────
    TEACHER SCREEN
-   ════════════════════════════════════════ */
-function renderTeacherScreen() {
-  if (!DB.loggedTeacher) return;
+───────────────────────────────────── */
+function renderTeacherScreen(){
+  if(!DB.loggedTeacher) return;
   document.getElementById('teacherWelcome').textContent = `مرحباً، ${DB.loggedTeacher.name}`;
-  const myClasses = DB.classes.filter(c => DB.loggedTeacher.classes.includes(c.id));
-  const grid = document.getElementById('classesGrid');
-  grid.innerHTML = myClasses.length === 0
-    ? '<div class="empty-state"><div class="ei">🏫</div><p>لا توجد صفوف مخصصة لك</p></div>'
-    : myClasses.map(cls => {
-        const pending = DB.requests.filter(r => r.classId === cls.id && r.status === 'pending').length;
-        return `<button class="class-btn ${DB.selectedTeacherClass === cls.id ? 'selected' : ''}" onclick="selectTeacherClass('${cls.id}')">
-          <div class="class-name">${cls.name || cls.id}</div>
-          <div class="class-count">${cls.students || ''}</div>
-          ${pending > 0 ? `<span class="class-pending">🔔 ${pending}</span>` : ''}
-        </button>`;
-      }).join('');
 
-  if (DB.selectedTeacherClass && DB.loggedTeacher.classes.includes(DB.selectedTeacherClass))
+  const grid = document.getElementById('classesGrid');
+  grid.innerHTML = DB.classes
+    .filter(c => DB.loggedTeacher.classes.includes(c.id))
+    .map(cls => {
+      const pending = DB.requests.filter(r => r.classId===cls.id && r.status==='pending').length;
+      return `<div class="class-btn ${DB.selectedTeacherClass===cls.id?'selected':''}" onclick="selectTeacherClass('${cls.id}')">
+        <div class="class-name">${cls.name}</div>
+        <div class="class-count">${cls.students} طالب</div>
+        ${pending > 0 ? `<span class="class-pending">🔔 ${pending}</span>` : ''}
+      </div>`;
+    }).join('');
+
+  if(DB.selectedTeacherClass && DB.loggedTeacher.classes.includes(DB.selectedTeacherClass)){
     renderTeacherClassView();
+  }
 }
 
-function selectTeacherClass(cid) {
+function selectTeacherClass(cid){
   DB.selectedTeacherClass = cid;
   document.getElementById('teacherClassView').style.display = 'block';
   renderTeacherScreen();
 }
 
-function renderTeacherClassView() {
-  const cid = DB.selectedTeacherClass;
-  if (!cid) return;
-  const cls = DB.classes.find(c => c.id === cid);
-  document.getElementById('selectedClassName').textContent = cls ? (cls.name || cls.id) : cid;
+function renderTeacherClassView(){
+  const cls = DB.classes.find(c => c.id === DB.selectedTeacherClass);
+  if(!cls) return;
+  document.getElementById('selectedClassName').textContent = cls.name;
 
-  const reqs    = DB.requests.filter(r => r.classId === cid);
-  const pending = reqs.filter(r => r.status === 'pending');
-  const done    = reqs.filter(r => r.status === 'done');
+  const reqs    = DB.requests.filter(r => r.classId === DB.selectedTeacherClass);
+  const pending = reqs.filter(r => r.status==='pending');
+  const done    = reqs.filter(r => r.status==='done');
 
-  document.getElementById('teacherPendingCount').style.display = pending.length > 0 ? 'flex' : 'none';
-  document.getElementById('teacherPendingCount').textContent   = `${pending.length} طلب معلق`;
-  document.getElementById('soundWave').style.display           = pending.length > 0 ? 'flex' : 'none';
+  const pcEl = document.getElementById('teacherPendingCount');
+  pcEl.style.display = pending.length > 0 ? 'flex' : 'none';
+  pcEl.textContent   = `${pending.length} طلب معلق`;
+  document.getElementById('soundWave').style.display = pending.length > 0 ? 'flex' : 'none';
 
   const list = document.getElementById('teacherRequestList');
-  if (reqs.length === 0) {
+  if(reqs.filter(r => r.status!=='expired').length === 0){
     list.innerHTML = '<div class="empty-state"><div class="ei">📭</div><p>لا توجد طلبات لهذا الصف</p></div>';
     return;
   }
+
   list.innerHTML = [...pending, ...done].map(req => {
-    const elapsed = Math.floor((Date.now() - req.requestTime) / 1000);
-    const mm = Math.floor(elapsed / 60), ss = elapsed % 60;
+    const elapsed  = Math.floor((Date.now() - req.requestTime)/1000);
+    const mm       = Math.floor(elapsed/60), ss = elapsed%60;
+    const autoLeft = req.status==='pending' ? Math.max(0, 180 - elapsed) : 0;
+
     return `<div class="request-item ${req.status}">
-      <div class="student-avatar ${getAv(req.studentId)}">${(req.studentName||'?')[0]}</div>
+      <div class="student-avatar ${getAv(req.studentId)}">${req.studentName[0]}</div>
       <div class="request-info">
         <div class="student-name">${req.studentName}</div>
         <div class="request-meta">
-          <span>👪 ${req.parentName || 'ولي الأمر'}</span>
+          <span>👪 ${req.parentName}</span>
           <span>⏱ ${padZ(mm)}:${padZ(ss)}</span>
+          ${req.status==='pending' && autoLeft > 0
+            ? `<span class="countdown-badge">🔄 ينتهي بعد ${padZ(Math.floor(autoLeft/60))}:${padZ(autoLeft%60)}</span>`
+            : ''}
         </div>
       </div>
       <div class="request-actions">
-        ${req.status === 'pending'
-          ? `<button class="btn btn-success btn-sm" onclick="confirmStudentLeft('${req.id}','${req.classId}')">✅ خرج الطالب</button>`
+        ${req.status==='pending'
+          ? `<button class="btn btn-success btn-sm" onclick="confirmStudentLeft('${req.id}')">✅ خرج الطالب</button>`
           : `<span class="pill pill-done">✅ خرج</span>`}
       </div>
     </div>`;
   }).join('');
 }
 
-function confirmStudentLeft(reqId, classId) {
-  FDB.ref('live_calls/' + classId + '/' + reqId).once('value', snap => {
-    const data = snap.val();
-    if (!data) return;
-    // أرشفة الطلب
-    FDB.ref('archive_calls').push({ ...data, status: 'done', exitTime: Date.now(), confirmedByTeacher: true });
-    // حذف من الطلبات الحية
-    FDB.ref('live_calls/' + classId + '/' + reqId).remove();
-    showToast(`✅ تم تسجيل خروج ${data.name || data.studentName}`, 'success', '✅');
-  });
-}
-
-/* ════════════════════════════════════════
+/* ─────────────────────────────────────
    PARENT SCREEN
-   ════════════════════════════════════════ */
-function renderParentScreen() {
+───────────────────────────────────── */
+function renderParentScreen(){
   applySystemStatus();
-  if (DB.loggedParent && DB.systemActive) renderParentDashboard();
+  if(DB.loggedParent && DB.systemActive) renderParentDashboard();
 }
 
-function parentLogin() {
-  const id = document.getElementById('parentIdInput').value.trim();
-  const parent = DB.parents.find(p => String(p.id).trim() === id);
-  if (!parent) { showToast('الرقم غير مسجل في النظام', 'danger', '❌'); return; }
+function parentLogin(){
+  const id    = document.getElementById('parentIdInput').value.trim();
+  const phone = document.getElementById('parentPhoneInput').value.trim();
+  const parent = DB.parents.find(p => p.id===id && p.phone===phone);
+  if(!parent){ showToast('بيانات الدخول غير صحيحة', 'danger', '❌'); return; }
   DB.loggedParent = parent;
   document.getElementById('parentLogin').style.display     = 'none';
   document.getElementById('parentDashboard').style.display = 'block';
@@ -895,399 +792,385 @@ function parentLogin() {
   showToast(`مرحباً ${parent.name}`, 'success', '👋');
 }
 
-function parentLogout() {
-  DB.loggedParent = null; selectedChildren.clear();
+function parentLogout(){
+  DB.loggedParent = null;
+  selectedChildren.clear();
   document.getElementById('parentLogin').style.display     = 'block';
   document.getElementById('parentDashboard').style.display = 'none';
-  document.getElementById('parentIdInput').value = '';
+  document.getElementById('parentIdInput').value           = '';
+  document.getElementById('parentPhoneInput').value        = '';
 }
 
 const selectedChildren = new Set();
 
-function renderParentDashboard() {
-  const p = DB.loggedParent; if (!p) return;
+function renderParentDashboard(){
+  const p = DB.loggedParent;
+  if(!p) return;
   document.getElementById('parentWelcomeName').textContent = p.name;
 
   const myReqs = DB.requests.filter(r => r.parentId === p.id);
 
-  // إشعارات
+  /* Notifications — إشعار "خرج" فقط إذا أكّده المعلم */
   const notifBox = document.getElementById('parentNotifications');
   notifBox.innerHTML = '';
-  myReqs.filter(r => r.status === 'done' && r.confirmedByTeacher).forEach(r => {
-    notifBox.innerHTML += `<div class="parent-notif-box success">✅ <b>${r.studentName}</b> تم إخراجه — انتظره أمام المدرسة</div>`;
+  myReqs.filter(r => r.status==='done' && r.confirmedByTeacher).forEach(r => {
+    notifBox.innerHTML += `<div class="parent-notif-box success">
+      ✅ <b>${r.studentName}</b> تم إخراجه من صف <b>${r.className}</b> — انتظره أمام باب المدرسة
+    </div>`;
   });
-  myReqs.filter(r => r.status === 'pending').forEach(r => {
-    notifBox.innerHTML += `<div class="parent-notif-box waiting">⏳ <b>${r.studentName}</b> — الطلب وصل للمعلم</div>`;
+  myReqs.filter(r => r.status==='pending').forEach(r => {
+    notifBox.innerHTML += `<div class="parent-notif-box waiting">
+      ⏳ <b>${r.studentName}</b> — الطلب وصل للمعلم وجارٍ التنفيذ
+    </div>`;
   });
 
+  /* Build requestedMap — latest status per student */
   const requestedMap = {};
   myReqs.forEach(r => {
-    if (!requestedMap[r.studentId] || r.requestTime > requestedMap[r.studentId].requestTime)
+    if(!requestedMap[r.studentId] || r.requestTime > requestedMap[r.studentId].requestTime)
       requestedMap[r.studentId] = r;
   });
 
   const sel = document.getElementById('parentStudentSelector');
   sel.innerHTML = p.children.map(child => {
-    const req      = requestedMap[child.id];
-    const isPending = req && req.status === 'pending';
-    const isDone    = req && req.status === 'done';
-    const disabled  = isPending || isDone;
-    const checked   = selectedChildren.has(child.id) && !disabled;
+    const req     = requestedMap[child.id];
+    const cls     = DB.classes.find(c => c.id === child.classId);
+    const clsName = cls ? cls.name : child.classId;
+
+    /* Disable if pending or done-by-teacher */
+    const isPending  = req && req.status==='pending';
+    const isDone     = req && req.status==='done';
+    const isExpired  = req && req.status==='expired';   /* can re-request */
+    const disabled   = isPending || isDone;
+    const checked    = selectedChildren.has(child.id) && !disabled;
+
     return `<div class="student-select-item ${checked?'selected':''} ${disabled?'disabled':''}"
-      onclick="${disabled ? '' : `toggleChildSelect('${child.id}')`}">
+         onclick="${disabled ? '' : `toggleChildSelect('${child.id}')`}">
       <div class="student-check">${checked?'✓':isDone?'✅':isPending?'📤':''}</div>
-      <div class="student-avatar ${getAv(child.id)}" style="width:38px;height:38px;font-size:16px">${(child.name||'?')[0]}</div>
+      <div class="student-avatar ${getAv(child.id)}" style="width:38px;height:38px;font-size:16px">${child.name[0]}</div>
       <div style="flex:1">
         <div style="font-weight:700;font-size:.95rem">${child.name}</div>
-        <div style="font-size:.78rem;color:var(--text-muted)">${child.classId}</div>
+        <div style="font-size:.78rem;color:var(--text-muted)">${clsName}</div>
       </div>
-      ${isDone ? '<span class="pill pill-done">✅ خرج</span>' : isPending ? '<span class="pill pill-pending">⏳ جارٍ</span>' : ''}
+      ${isDone    ? '<span class="pill pill-done">✅ خرج</span>'   :
+        isPending ? '<span class="pill pill-pending">⏳ جارٍ</span>' :
+        isExpired ? '<span class="pill" style="background:rgba(244,166,35,.15);color:#b07b00">🔄 أعد الطلب</span>' : ''}
     </div>`;
   }).join('');
 
   document.getElementById('submitRequestBtn').disabled = selectedChildren.size === 0;
 
+  /* Status list */
   const statusDiv = document.getElementById('parentRequestStatus');
-  if (!myReqs.length) {
+  const visibleReqs = myReqs.filter(r => r.status !== 'expired' || /* show last expired */ true);
+  if(!visibleReqs.length){
     statusDiv.innerHTML = '<div class="empty-state"><div class="ei">📭</div><p>لا توجد طلبات بعد</p></div>';
   } else {
-    statusDiv.innerHTML = [...myReqs].sort((a,b) => b.requestTime - a.requestTime).map(r => {
-      const reqT = new Date(r.requestTime).toLocaleTimeString('ar-SA', {hour:'2-digit',minute:'2-digit'});
+    statusDiv.innerHTML = [...myReqs].sort((a,b)=>b.requestTime-a.requestTime).map(r => {
+      const reqT  = new Date(r.requestTime).toLocaleTimeString('ar-SA',{hour:'2-digit',minute:'2-digit'});
+      const exitT = r.exitTime ? new Date(r.exitTime).toLocaleTimeString('ar-SA',{hour:'2-digit',minute:'2-digit'}) : '—';
       return `<div class="request-item ${r.status}" style="margin-bottom:8px">
-        <div class="student-avatar ${getAv(r.studentId)}">${(r.studentName||'?')[0]}</div>
+        <div class="student-avatar ${getAv(r.studentId)}">${r.studentName[0]}</div>
         <div class="request-info">
           <div class="student-name">${r.studentName}</div>
-          <div class="request-meta"><span>📚 ${r.classId}</span><span>🕐 ${reqT}</span></div>
+          <div class="request-meta">
+            <span>📚 ${r.className}</span>
+            <span>🕐 ${reqT}</span>
+            ${r.exitTime ? `<span>🚪 ${exitT}</span>` : ''}
+          </div>
         </div>
-        ${r.status==='done' ? '<span class="pill pill-done">✅ خرج</span>' :
+        ${r.status==='done'    ? '<span class="pill pill-done">✅ خرج</span>'     :
           r.status==='pending' ? '<span class="pill pill-pending">⏳ انتظار</span>' :
-          '<span class="pill pill-expired">⏱ انتهت</span>'}
+          '<span class="pill pill-expired">⏱ انتهت المهلة</span>'}
       </div>`;
     }).join('');
   }
 }
 
-function toggleChildSelect(childId) {
-  if (selectedChildren.has(childId)) selectedChildren.delete(childId);
+function toggleChildSelect(childId){
+  if(selectedChildren.has(childId)) selectedChildren.delete(childId);
   else selectedChildren.add(childId);
   renderParentDashboard();
 }
 
-function submitExitRequest() {
-  if (!DB.loggedParent || selectedChildren.size === 0) return;
+function submitExitRequest(){
+  if(!DB.loggedParent || selectedChildren.size === 0) return;
+  const now = Date.now();
+  const newReqs = [];
+
   selectedChildren.forEach(childId => {
     const child = DB.loggedParent.children.find(c => c.id === childId);
-    if (!child) return;
-    const classId = child.classId;
-    FDB.ref('live_calls/' + classId).push({
-      name      : child.name,
-      studentName: child.name,
-      studentId : child.id,
-      classId   : classId,
-      parentId  : DB.loggedParent.id,
-      parentName: DB.loggedParent.name,
-      ts        : Date.now(),
-      requestTime: Date.now(),
-      status    : 'pending',
-    });
+    const cls   = DB.classes.find(c => c.id === child.classId);
+    if(!child || !cls) return;
+
+    /* remove old expired requests for this child */
+    DB.requests = DB.requests.filter(r => !(r.studentId===childId && r.status==='expired'));
+
+    const req = {
+      id: 'r'+(DB.nextReqId++),
+      studentId: child.id,   studentName: child.name,
+      classId: child.classId, className: cls.name,
+      parentId: DB.loggedParent.id, parentName: DB.loggedParent.name,
+      requestTime: now, exitTime: null,
+      status: 'pending', confirmedByTeacher: false,
+    };
+    DB.requests.push(req);
+    newReqs.push(req);
   });
+
   selectedChildren.clear();
-  showToast('تم إرسال طلب الخروج للمعلم', 'success', '📤');
+  showToast(`تم إرسال ${newReqs.length} طلب خروج للمعلمين`, 'success', '📤');
   renderParentDashboard();
+  renderAdminScreen();
+
+  /* ── بعد 3 دقائق: إذا لم يؤكد المعلم → الطلب منتهٍ، يُفعَّل الزر مجدداً، لا إشعار للوالد ── */
+  newReqs.forEach(req => {
+    setTimeout(() => {
+      if(req.status === 'pending'){
+        req.status  = 'expired';
+        req.exitTime = null;
+        showToast(`⏱ انتهت مهلة طلب ${req.studentName} — يمكن لولي الأمر إعادة الطلب`, 'default', '🔄');
+        renderTeacherClassView();
+        renderAdminScreen();
+        if(DB.loggedParent && DB.loggedParent.id === req.parentId) renderParentDashboard();
+        updateStats();
+      }
+    }, 3 * 60 * 1000);
+  });
+
+  triggerTeacherNotification();
 }
 
-/* ════════════════════════════════════════
+/* ─────────────────────────────────────
+   CONFIRM EXIT (teacher presses btn)
+───────────────────────────────────── */
+function confirmStudentLeft(reqId){
+  const req = DB.requests.find(r => r.id===reqId);
+  if(!req || req.status!=='pending') return;
+  req.status             = 'done';
+  req.exitTime           = Date.now();
+  req.confirmedByTeacher = true;
+  showToast(`✅ تم تسجيل خروج ${req.studentName} من ${req.className}`, 'success', '✅');
+  renderTeacherClassView();
+  renderAdminScreen();
+  if(DB.loggedParent && DB.loggedParent.id === req.parentId) renderParentDashboard();
+  updateStats();
+}
+
+function triggerTeacherNotification(){
+  if(DB.selectedTeacherClass && document.getElementById('screen-teacher').classList.contains('active'))
+    renderTeacherClassView();
+}
+
+/* ─────────────────────────────────────
    ADMIN SCREEN
-   ════════════════════════════════════════ */
-function renderAdminScreen() {
+───────────────────────────────────── */
+function renderAdminScreen(){
   updateStats();
   renderAdminRequestList();
   renderClassesStatus();
-  renderStorageStatus();
 }
 
-function updateStats() {
-  const pending = DB.requests.filter(r => r.status === 'pending').length;
-  const done    = DB.requests.filter(r => r.status === 'done').length;
-  const parents = new Set(DB.requests.map(r => r.parentId)).size;
-  document.getElementById('stat-total').textContent   = DB.requests.length;
+function updateStats(){
+  const total   = DB.requests.length;
+  const pending = DB.requests.filter(r=>r.status==='pending').length;
+  const done    = DB.requests.filter(r=>r.status==='done').length;
+  const parents = new Set(DB.requests.map(r=>r.parentId)).size;
+  document.getElementById('stat-total').textContent   = total;
   document.getElementById('stat-pending').textContent = pending;
   document.getElementById('stat-done').textContent    = done;
   document.getElementById('stat-parents').textContent = parents;
 
   const tab = document.querySelector('.nav-tab[data-screen="teacher"]');
-  if (tab) {
-    let b = tab.querySelector('.badge');
-    if (pending > 0) { if (!b) { b = document.createElement('span'); b.className = 'badge'; tab.appendChild(b); } b.textContent = pending; }
-    else { if (b) b.remove(); }
-  }
+  let b = tab.querySelector('.badge');
+  if(pending > 0){ if(!b){b=document.createElement('span');b.className='badge';tab.appendChild(b);} b.textContent=pending; }
+  else { if(b) b.remove(); }
 }
 
-function renderAdminRequestList() {
+function renderAdminRequestList(){
   const list = document.getElementById('adminRequestList');
-  if (!DB.requests.length) {
+  if(!DB.requests.length){
     list.innerHTML = '<div class="empty-state"><div class="ei">📭</div><p>لا توجد طلبات حتى الآن</p></div>'; return;
   }
-  list.innerHTML = [...DB.requests].sort((a,b) => b.requestTime - a.requestTime).map(req => {
-    const t = new Date(req.requestTime).toLocaleTimeString('ar-SA', {hour:'2-digit',minute:'2-digit'});
+  list.innerHTML = [...DB.requests].sort((a,b)=>b.requestTime-a.requestTime).map(req => {
+    const t = new Date(req.requestTime).toLocaleTimeString('ar-SA',{hour:'2-digit',minute:'2-digit'});
     return `<div class="request-item ${req.status}">
-      <div class="student-avatar ${getAv(req.studentId)}">${(req.studentName||'?')[0]}</div>
+      <div class="student-avatar ${getAv(req.studentId)}">${req.studentName[0]}</div>
       <div class="request-info">
         <div class="student-name">${req.studentName}</div>
-        <div class="request-meta"><span>📚 ${req.classId}</span><span>👪 ${req.parentName||''}</span><span>🕐 ${t}</span></div>
+        <div class="request-meta"><span>📚 ${req.className}</span><span>👪 ${req.parentName}</span><span>🕐 ${t}</span></div>
       </div>
-      ${req.status==='pending' ? '<span class="pill pill-pending">⏳ معلق</span>' :
-        req.status==='done'    ? '<span class="pill pill-done">✅ خرج</span>' :
-        '<span class="pill pill-expired">⏱ انتهت</span>'}
+      ${req.status==='done'    ? `<span class="pill pill-done">✅ خرج</span>`   :
+        req.status==='expired' ? `<span class="pill pill-expired">⏱ انتهت</span>` :
+        `<div style="display:flex;gap:6px">
+           <span class="pill pill-pending">⏳</span>
+           <button class="btn btn-success btn-sm" onclick="confirmStudentLeft('${req.id}')">تأكيد خروج</button>
+         </div>`}
     </div>`;
   }).join('');
 }
 
-function renderClassesStatus() {
-  const tbody = document.getElementById('classesStatusBody');
-  if (!DB.classes.length) {
-    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:24px">لا توجد بيانات</td></tr>'; return;
-  }
-  tbody.innerHTML = DB.classes.map(cls => {
-    const pending = DB.requests.filter(r => r.classId === cls.id && r.status === 'pending').length;
-    const done    = DB.requests.filter(r => r.classId === cls.id && r.status === 'done').length;
+function renderClassesStatus(){
+  document.getElementById('classesStatusBody').innerHTML = DB.classes.map(cls => {
+    const teacher = teacherForClass(cls.id);
+    const pending = DB.requests.filter(r=>r.classId===cls.id&&r.status==='pending').length;
+    const done    = DB.requests.filter(r=>r.classId===cls.id&&r.status==='done').length;
     return `<tr>
-      <td><b>${cls.name || cls.id}</b></td>
-      <td>${teacherForClass(cls.id)}</td>
-      <td>${pending > 0 ? `<span class="pill pill-pending">${pending}</span>` : '—'}</td>
-      <td>${done > 0 ? `<span class="pill pill-done">${done}</span>` : '—'}</td>
+      <td><b>${cls.name}</b></td><td>${teacher}</td>
+      <td>${pending>0?`<span class="pill pill-pending">${pending}</span>`:'—'}</td>
+      <td>${done>0?`<span class="pill pill-done">${done}</span>`:'—'}</td>
     </tr>`;
   }).join('');
 }
 
-function renderStorageStatus() {
-  const body = document.getElementById('storageStatusBody');
-  if (!body) return;
-  const row = (icon, label, count, ok) =>
-    `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
-      <span style="font-size:18px">${icon}</span>
-      <span style="flex:1;font-size:.88rem;font-weight:600">${label}</span>
-      <span style="font-size:.82rem;color:${ok?'var(--success)':'var(--danger)'};font-weight:700">
-        ${ok ? '✅ '+count : '❌ لا توجد بيانات'}
-      </span>
-    </div>`;
-  const totalStudents = DB.parents.reduce((s,p) => s + p.children.length, 0);
-  body.innerHTML =
-    `<div style="background:rgba(29,184,126,.1);border:1px solid rgba(29,184,126,.3);border-radius:8px;padding:8px 12px;font-size:.8rem;color:#0a6644;margin-bottom:10px">
-      🔥 <b>متصل بـ Firebase Realtime</b> — البيانات تتزامن فورياً بين جميع الأجهزة
-    </div>`
-    + row('👨‍🏫', 'المعلمون',     DB.teachers.length + ' معلم',    DB.teachers.length > 0)
-    + row('👦',    'الطلاب',        totalStudents + ' طالب',         totalStudents > 0)
-    + row('👪',    'أولياء الأمور', DB.parents.length + ' ولي أمر',  DB.parents.length > 0)
-    + `<div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
-        <button class="btn btn-sm btn-primary" onclick="manualRefresh()">🔄 تحديث</button>
-        <button class="btn btn-sm btn-danger" onclick="clearAllData()">🗑️ مسح الكل</button>
-      </div>`;
-}
-
-function clearDoneRequests() {
-  FDB.ref('live_calls').once('value', snap => {
-    const all = snap.val() || {};
-    Object.keys(all).forEach(cls => {
-      Object.keys(all[cls]).forEach(id => {
-        if (all[cls][id].status === 'done') FDB.ref('live_calls/'+cls+'/'+id).remove();
-      });
-    });
-  });
-  showToast('تم مسح الطلبات المكتملة', 'success');
-}
-
-function clearAllData() {
-  if (!confirm('مسح جميع البيانات؟ لا يمكن التراجع.')) return;
-  FDB.ref('live_calls').remove();
-  FDB.ref('archive_calls').remove();
-  showToast('تم المسح', 'danger', '🗑️');
-}
-
-function manualRefresh() {
-  showToast('جارٍ التحديث…', 'default', '🔄');
+function clearDoneRequests(){
+  DB.requests = DB.requests.filter(r=>r.status==='pending');
   renderAdminScreen();
-  if (DB.loggedTeacher) renderTeacherScreen();
-  if (DB.loggedParent)  renderParentDashboard();
+  showToast('تم مسح الطلبات المكتملة والمنتهية', 'success', '🧹');
 }
 
-/* ════════════════════════════════════════
-   FILE UPLOAD — Excel + CSV
-   ════════════════════════════════════════ */
-function readFileAsJSON(file, callback) {
-  const name = file.name.toLowerCase();
+/* ─────────────────────────────────────
+   FILE UPLOAD
+───────────────────────────────────── */
+function handleTeachersFile(input){
+  const file = input.files[0]; if(!file) return;
   const reader = new FileReader();
-  if (name.endsWith('.xlsx') || name.endsWith('.xls')) {
-    reader.onload = e => {
-      const wb   = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
-      const json = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
-      callback(json);
-    };
-    reader.readAsArrayBuffer(file);
-  } else {
-    reader.onload = e => {
-      const lines  = e.target.result.replace(/\r/g,'').split('\n').filter(l => l.trim());
-      const header = lines[0].split(',').map(c => c.trim());
-      const json   = lines.slice(1).map(line => {
-        const vals = line.split(',').map(c => c.trim());
-        const obj  = {};
-        header.forEach((h, i) => obj[h] = vals[i] || '');
-        return obj;
-      });
-      callback(json);
-    };
-    reader.readAsText(file, 'UTF-8');
-  }
+  reader.onload = e => {
+    try {
+      const lines  = e.target.result.replace(/\r/g,'').split('\n').filter(l=>l.trim());
+      const header = lines[0].toLowerCase();
+      if(!header.includes('username')){ showUploadStatus('❌ يجب أن يحتوي الملف على عمود username','danger'); return; }
+      const cols = header.split(',').map(c=>c.trim());
+      const uI=cols.indexOf('username'), nI=cols.findIndex(c=>c.includes('name')), cI=cols.findIndex(c=>c.includes('class'));
+      const newTeachers=[];
+      for(let i=1;i<lines.length;i++){
+        const p=lines[i].split(',').map(c=>c.trim()); if(p.length<1||!p[uI]) continue;
+        newTeachers.push({ username:p[uI], name:p[nI]||p[uI], classes: cI>=0&&p[cI] ? p[cI].split('|').map(c=>c.trim()) : [] });
+      }
+      if(!newTeachers.length){ showUploadStatus('❌ لم يتم العثور على بيانات','danger'); return; }
+      DB.teachers = newTeachers;
+      document.getElementById('teachersLabel').textContent = `✅ تم رفع ${newTeachers.length} معلم`;
+      showUploadStatus(`✅ تم تحميل ${newTeachers.length} معلم بنجاح`,'success');
+      renderClassesStatus();
+    } catch(err){ showUploadStatus('❌ خطأ في قراءة الملف','danger'); }
+  };
+  reader.readAsText(file,'UTF-8');
 }
 
-function handleTeachersFile(input) {
-  const file = input.files[0]; if (!file) return;
-  readFileAsJSON(file, rows => {
-    if (!rows.length) { showUploadStatus('❌ الملف فارغ', 'danger'); return; }
-    FDB.ref('school_config/teachers').set(rows).then(() => {
-      document.getElementById('teachersLabel').textContent = `✅ تم رفع ${rows.length} معلم`;
-      showUploadStatus(`✅ تم رفع ${rows.length} معلم وحفظهم على جميع الأجهزة`, 'success');
-    });
-  });
+function handleStudentsFile(input){
+  const file = input.files[0]; if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const lines  = e.target.result.replace(/\r/g,'').split('\n').filter(l=>l.trim());
+      const header = lines[0].toLowerCase();
+      if(!header.includes('student')){ showUploadStatus('❌ الملف لا يحتوي على بيانات الطلاب','danger'); return; }
+      const cols = header.split(',').map(c=>c.trim());
+      const snI=cols.findIndex(c=>c==='student_name'), siI=cols.findIndex(c=>c==='student_id'),
+            ciI=cols.findIndex(c=>c==='class_id'),     pnI=cols.findIndex(c=>c==='parent_name'),
+            piI=cols.findIndex(c=>c==='parent_id'),    phI=cols.findIndex(c=>c==='parent_phone');
+      const parentMap={};let sCount=0;
+      for(let i=1;i<lines.length;i++){
+        const p=lines[i].split(',').map(c=>c.trim()); if(p.length<3) continue;
+        const pid=piI>=0?p[piI]:'p'+i, pPhone=phI>=0?p[phI]:'05000000000',
+              pName=pnI>=0?p[pnI]:'ولي أمر', sid=siI>=0?p[siI]:'s'+i,
+              sName=snI>=0?p[snI]:p[0], cid=ciI>=0?p[ciI]:'';
+        if(!parentMap[pid]) parentMap[pid]={id:pid,phone:pPhone,name:pName,children:[]};
+        parentMap[pid].children.push({id:sid,name:sName,classId:cid}); sCount++;
+      }
+      const newParents=Object.values(parentMap);
+      if(!newParents.length){ showUploadStatus('❌ لم يتم العثور على بيانات','danger'); return; }
+      DB.parents=newParents;
+      document.getElementById('studentsLabel').textContent=`✅ تم رفع ${sCount} طالب`;
+      showUploadStatus(`✅ تم تحميل ${sCount} طالب من ${newParents.length} ولي أمر`,'success');
+    } catch(err){ showUploadStatus('❌ خطأ في قراءة الملف','danger'); }
+  };
+  reader.readAsText(file,'UTF-8');
 }
 
-function handleStudentsFile(input) {
-  const file = input.files[0]; if (!file) return;
-  readFileAsJSON(file, rows => {
-    if (!rows.length) { showUploadStatus('❌ الملف فارغ', 'danger'); return; }
-    FDB.ref('school_config/students').set(rows).then(() => {
-      document.getElementById('studentsLabel').textContent = `✅ تم رفع ${rows.length} طالب`;
-      showUploadStatus(`✅ تم رفع ${rows.length} طالب وحفظهم على جميع الأجهزة`, 'success');
-    });
-  });
-}
-
-function showUploadStatus(msg, type) {
-  const el = document.getElementById('uploadStatus');
-  el.innerHTML = `<div style="padding:10px 14px;border-radius:8px;font-size:.85rem;font-weight:600;
+function showUploadStatus(msg,type){
+  const el=document.getElementById('uploadStatus');
+  el.innerHTML=`<div style="padding:10px 14px;border-radius:8px;font-size:.85rem;font-weight:600;
     background:${type==='success'?'var(--success-soft)':'var(--danger-soft)'};
     color:${type==='success'?'#0a6644':'var(--danger)'};">${msg}</div>`;
-  setTimeout(() => el.innerHTML = '', 6000);
+  setTimeout(()=>el.innerHTML='',6000);
 }
 
-function downloadTemplate(type) {
+function downloadTemplate(type){
   let csv, filename;
-  if (type === 'teachers') {
-    csv = 'username,name,صفوف\nteacher1,أ. محمد السالم,1أ 1ب\nteacher2,أ. خالد العمري,2أ\n';
-    filename = 'teachers_template.csv';
+  if(type==='teachers'){
+    csv = 'username,name,classes\nteacher1,أ. محمد السالم,1a|1b\nteacher2,أ. خالد العمري,2a\nteacher3,أ. سعد الرشيدي,2b|3a\nteacher4,أ. فيصل القحطاني,3b\n';
+    filename='teachers_template.csv';
   } else {
-    csv = 'اسم_الطالب,صف,QID_ولي_الأمر,اسم_ولي_الأمر\nنواف أحمد,1أ,1234567890,أحمد السالم\n';
-    filename = 'students_template.csv';
+    csv = 'student_id,student_name,class_id,parent_name,parent_id,parent_phone\ns001,نواف أحمد العتيبي,1a,أحمد بن سعد العتيبي,1234567890,0501234567\ns002,ريان أحمد العتيبي,3a,أحمد بن سعد العتيبي,1234567890,0501234567\ns003,فارس سلطان القحطاني,2b,سلطان بن علي القحطاني,9876543210,0559876543\n';
+    filename='students_template.csv';
   }
-  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a'); a.href = url; a.download = filename; a.click();
+  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download=filename;a.click();
   URL.revokeObjectURL(url);
 }
 
-/* ════════════════════════════════════════
-   SOUND & SPEECH
-   ════════════════════════════════════════ */
-function playLoudAlert() {
-  // جرب تشغيل الجرس أولاً
-  const bell = document.getElementById('bellAudio');
-  if (bell) bell.play().catch(() => {});
-  // صوت تنبيه إضافي
-  try {
-    const ctx  = new (window.AudioContext || window.webkitAudioContext)();
-    const beep = (f, t, d, v) => {
-      const o = ctx.createOscillator(), g = ctx.createGain();
-      o.connect(g); g.connect(ctx.destination);
-      o.frequency.value = f; o.type = 'square';
-      g.gain.setValueAtTime(v, t);
-      g.gain.exponentialRampToValueAtTime(0.001, t + d);
-      o.start(t); o.stop(t + d);
-    };
-    const t = ctx.currentTime;
-    beep(880, t, .18, 1); beep(660, t+.22, .18, 1); beep(880, t+.44, .18, 1); beep(1100, t+.7, .3, 1);
-  } catch(e) {}
-}
-
-function speakArabic(name, cls) {
-  if (!('speechSynthesis' in window)) return;
-  const msg = new SpeechSynthesisUtterance(`خروج ${name} من صف ${cls}`);
-  msg.lang = 'ar-SA'; msg.rate = 0.9; msg.volume = 1;
-  window.speechSynthesis.speak(msg);
-}
-
-/* ════════════════════════════════════════
+/* ─────────────────────────────────────
    REPORT
-   ════════════════════════════════════════ */
-function generateReport() {
-  const sec = document.getElementById('reportSection');
-  sec.style.display = 'block';
-  sec.scrollIntoView({ behavior: 'smooth' });
-  const now = new Date();
-  document.getElementById('reportDate').textContent =
-    now.toLocaleDateString('ar-SA', {weekday:'long',year:'numeric',month:'long',day:'numeric'}) +
-    ' | ' + now.toLocaleTimeString('ar-SA');
-  const total = DB.requests.length, done = DB.requests.filter(r => r.status==='done').length,
-        pending = DB.requests.filter(r => r.status==='pending').length;
-  document.getElementById('reportStats').innerHTML = `
+───────────────────────────────────── */
+function generateReport(){
+  const sec=document.getElementById('reportSection');
+  sec.style.display='block';
+  sec.scrollIntoView({behavior:'smooth'});
+  const now=new Date();
+  document.getElementById('reportDate').textContent=
+    now.toLocaleDateString('ar-SA',{weekday:'long',year:'numeric',month:'long',day:'numeric'})+
+    ' | '+now.toLocaleTimeString('ar-SA');
+  const total=DB.requests.length, done=DB.requests.filter(r=>r.status==='done').length,
+        pending=DB.requests.filter(r=>r.status==='pending').length, expired=DB.requests.filter(r=>r.status==='expired').length;
+  document.getElementById('reportStats').innerHTML=`
     <div class="stat-card"><div class="stat-icon blue">📋</div><div class="stat-info"><h3>${total}</h3><p>إجمالي</p></div></div>
     <div class="stat-card"><div class="stat-icon green">✅</div><div class="stat-info"><h3>${done}</h3><p>تم الخروج</p></div></div>
-    <div class="stat-card"><div class="stat-icon orange">⏳</div><div class="stat-info"><h3>${pending}</h3><p>معلقة</p></div></div>`;
-  const tbody = document.getElementById('reportBody');
-  tbody.innerHTML = DB.requests.map((r, i) => {
-    const reqT = new Date(r.requestTime).toLocaleTimeString('ar-SA',{hour:'2-digit',minute:'2-digit'});
-    const exT  = r.exitTime ? new Date(r.exitTime).toLocaleTimeString('ar-SA',{hour:'2-digit',minute:'2-digit'}) : '—';
-    return `<tr><td>${i+1}</td><td><b>${r.studentName}</b></td><td>${r.classId}</td><td>${r.parentName||''}</td>
-      <td>${reqT}</td><td>${exT}</td>
-      <td>${r.status==='done'?'<span class="pill pill-done">✅ خرج</span>':'<span class="pill pill-pending">⏳ معلق</span>'}</td></tr>`;
+    <div class="stat-card"><div class="stat-icon orange">⏳</div><div class="stat-info"><h3>${pending}</h3><p>معلقة</p></div></div>
+    <div class="stat-card"><div class="stat-icon red">⏱</div><div class="stat-info"><h3>${expired}</h3><p>انتهت مهلتها</p></div></div>`;
+  const tbody=document.getElementById('reportBody');
+  if(!DB.requests.length){
+    tbody.innerHTML='<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text-muted)">لا توجد بيانات لهذا اليوم</td></tr>';return;
+  }
+  tbody.innerHTML=DB.requests.map((r,i)=>{
+    const reqT=new Date(r.requestTime).toLocaleTimeString('ar-SA',{hour:'2-digit',minute:'2-digit'});
+    const exitT=r.exitTime?new Date(r.exitTime).toLocaleTimeString('ar-SA',{hour:'2-digit',minute:'2-digit'}):'—';
+    return `<tr><td>${i+1}</td><td><b>${r.studentName}</b></td><td>${r.className}</td><td>${r.parentName}</td><td>${reqT}</td><td>${exitT}</td>
+      <td>${r.status==='done'?'<span class="pill pill-done">✅ تم الخروج</span>':r.status==='pending'?'<span class="pill pill-pending">⏳ معلق</span>':'<span class="pill pill-expired">⏱ انتهت</span>'}</td></tr>`;
   }).join('');
 }
-function printReport() { window.print(); }
+function printReport(){ window.print(); }
 
-/* ════════════════════════════════════════
+/* ─────────────────────────────────────
    TOAST
-   ════════════════════════════════════════ */
-function showToast(msg, type = 'default', icon = 'ℹ️') {
-  const c = document.getElementById('toastContainer');
-  const t = document.createElement('div'); t.className = `toast ${type}`;
-  t.innerHTML = `<span style="font-size:18px">${icon}</span><span>${msg}</span>`;
+───────────────────────────────────── */
+function showToast(msg,type='default',icon='ℹ️'){
+  const c=document.getElementById('toastContainer');
+  const t=document.createElement('div');t.className=`toast ${type}`;
+  t.innerHTML=`<span style="font-size:18px">${icon}</span><span>${msg}</span>`;
   c.appendChild(t);
-  setTimeout(() => { t.style.animation = 'toast-in .3s ease reverse both'; setTimeout(() => t.remove(), 300); }, 4500);
+  setTimeout(()=>{t.style.animation='toast-in .3s ease reverse both';setTimeout(()=>t.remove(),300);},4500);
 }
 
-/* ════════════════════════════════════════
-   SYNC STATUS BAR
-   ════════════════════════════════════════ */
-function showSyncStatus(msg, state) {
-  const el = document.getElementById('syncStatusBar');
-  if (!el) return;
-  const colors = { loading: '#f4a623', ok: '#1db87e', error: '#e84040' };
-  el.style.background = colors[state] || '#888';
-  el.textContent = msg;
-  el.style.display = 'flex';
-  if (state === 'ok') setTimeout(() => { el.style.display = 'none'; }, 3000);
-}
-
-/* ════════════════════════════════════════
-   HELPERS
-   ════════════════════════════════════════ */
-function parseClasses(raw) {
-  if (Array.isArray(raw)) return raw;
-  return String(raw).split(/[,،\s|]+/).map(c => c.trim()).filter(Boolean);
-}
-
-function liveRefresh() {
+/* ─────────────────────────────────────
+   LIVE REFRESH
+───────────────────────────────────── */
+function liveRefresh(){
   updateClock();
-  if (document.getElementById('screen-teacher').classList.contains('active') && DB.selectedTeacherClass)
-    renderTeacherClassView();
+  if(document.getElementById('screen-teacher').classList.contains('active')&&DB.selectedTeacherClass) renderTeacherClassView();
+  if(document.getElementById('screen-admin').classList.contains('active'))   renderAdminScreen();
+  if(document.getElementById('screen-parent').classList.contains('active')&&DB.loggedParent) renderParentDashboard();
 }
 
-/* ════════════════════════════════════════
+/* ─────────────────────────────────────
    INIT
-   ════════════════════════════════════════ */
-(function init() {
+───────────────────────────────────── */
+(function init(){
   setInterval(liveRefresh, 1000);
-  showScreen('teacher');
-  initFirebase();
+  // Show admin login overlay on start
+  document.getElementById('adminLoginOverlay').classList.remove('hidden');
+  setTimeout(()=>document.getElementById('adminUser').focus(), 200);
 })();
 </script>
 </body>
