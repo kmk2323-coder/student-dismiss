@@ -211,6 +211,22 @@ body{font-family:'Cairo','Tajawal',sans-serif;background:var(--bg);color:var(--t
   #screen-admin{display:block!important;}
   .btn{display:none!important;}
 }
+/* ── إخفاء التابات حسب نوع المستخدم ── */
+.tab-hidden{display:none!important;}
+/* ── Archive modal ── */
+.archive-modal{position:fixed;inset:0;background:rgba(5,20,50,.85);backdrop-filter:blur(6px);z-index:8000;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto;}
+.archive-modal.hidden{display:none!important;}
+.archive-box{background:#fff;border-radius:20px;width:100%;max-width:860px;box-shadow:0 24px 64px rgba(0,0,0,.35);overflow:hidden;margin:auto;}
+.archive-box .arch-header{background:linear-gradient(135deg,var(--primary),#1a6bbf);color:#fff;padding:20px 24px;display:flex;align-items:center;justify-content:space-between;}
+.archive-box .arch-header h2{font-size:1.1rem;font-weight:800;margin:0;}
+.archive-day{border:1px solid var(--border);border-radius:var(--radius-sm);margin:12px 16px;overflow:hidden;}
+.archive-day-header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:rgba(10,77,140,.04);cursor:pointer;font-weight:700;font-size:.9rem;}
+.archive-day-header:hover{background:rgba(10,77,140,.08);}
+.archive-day-body{padding:12px 16px;display:none;}
+.archive-day-body.open{display:block;}
+.arch-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);font-size:.85rem;}
+.arch-row:last-child{border-bottom:none;}
+.arch-check{width:18px;height:18px;cursor:pointer;}
 </style>
 </head>
 <body>
@@ -429,8 +445,9 @@ body{font-family:'Cairo','Tajawal',sans-serif;background:var(--bg);color:var(--t
           <div style="display:flex;gap:10px;flex-wrap:wrap">
             <button class="btn btn-success" onclick="setSystemActive(true)">▶ تشغيل</button>
             <button class="btn btn-danger" onclick="setSystemActive(false)">⏹ إيقاف</button>
-            <button class="btn btn-accent" onclick="generateReport()">📊 تقرير</button>
-            <button class="btn btn-primary" onclick="manualRefresh()">🔄 تحديث</button>
+            <button class="btn btn-accent" onclick="generateAndArchiveReport()">📊 تقرير اليوم</button>
+            <button class="btn btn-primary" onclick="openArchive()">📦 الأرشيف</button>
+            <button class="btn btn-ghost" onclick="manualRefresh()">🔄 تحديث</button>
           </div>
         </div>
       </div>
@@ -509,6 +526,23 @@ body{font-family:'Cairo','Tajawal',sans-serif;background:var(--bg);color:var(--t
           <button class="btn btn-primary" onclick="printReport()">🖨️ طباعة</button>
         </div>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- ARCHIVE MODAL -->
+<div class="archive-modal hidden" id="archiveModal">
+  <div class="archive-box">
+    <div class="arch-header">
+      <h2>📦 أرشيف التقارير اليومية</h2>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn btn-sm btn-danger" onclick="deleteSelectedArchive()">🗑️ حذف المحدد</button>
+        <button class="btn btn-sm" style="background:rgba(255,255,255,.2);color:#fff" onclick="deleteAllArchive()">🗑️ حذف الكل</button>
+        <button class="btn btn-sm" style="background:rgba(255,255,255,.15);color:#fff" onclick="closeArchive()">✕ إغلاق</button>
+      </div>
+    </div>
+    <div style="padding:16px" id="archiveList">
+      <div class="empty-state"><div class="ei">📦</div><p>لا توجد تقارير مؤرشفة بعد</p></div>
     </div>
   </div>
 </div>
@@ -746,8 +780,11 @@ function adminLogin() {
   const p = document.getElementById('adminPass').value;
   if (u === 'admin' && p === 'admin123') {
     DB.adminLoggedIn = true;
+    DB.userRole = 'admin';
     document.getElementById('adminLoginOverlay').classList.add('hidden');
     showHeaderUser('المدير 🛡️');
+    /* الأدمن: يرى كل التابات — لا تغيير */
+    applyTabVisibility();
     showScreen('admin');
     renderAdminScreen();
     showToast('مرحباً بك يا مدير النظام', 'success', '🛡️');
@@ -778,8 +815,11 @@ function teacherLogin() {
     return;
   }
   DB.loggedTeacher = teacher;
+  DB.userRole = 'teacher';
   document.getElementById('teacherLoginOverlay').classList.add('hidden');
   showHeaderUser(teacher.name + ' 👨‍🏫');
+  /* المعلم: أخفِ تاب ولي الأمر والإدارة */
+  applyTabVisibility();
   showScreen('teacher');
   renderTeacherScreen();
   showToast(`مرحباً ${teacher.name}`, 'success', '👨‍🏫');
@@ -787,9 +827,13 @@ function teacherLogin() {
 
 function logoutCurrent() {
   DB.loggedTeacher = null; DB.selectedTeacherClass = null;
-  DB.adminLoggedIn = false;
+  DB.adminLoggedIn = false; DB.loggedParent = null;
+  DB.userRole = null;
   document.getElementById('headerUserInfo').classList.add('hidden');
   document.getElementById('teacherClassView').style.display = 'none';
+  /* إعادة ظهور جميع التابات */
+  applyTabVisibility();
+  showScreen('teacher');
   showToast('تم تسجيل الخروج', 'default', '👋');
 }
 
@@ -907,8 +951,11 @@ function parentLogin() {
   const parent = DB.parents.find(p => String(p.id).trim() === id);
   if (!parent) { showToast('الرقم غير مسجل في النظام', 'danger', '❌'); return; }
   DB.loggedParent = parent;
+  DB.userRole = 'parent';
   document.getElementById('parentLogin').style.display     = 'none';
   document.getElementById('parentDashboard').style.display = 'block';
+  /* ولي الأمر: أخفِ تاب المعلم والإدارة */
+  applyTabVisibility();
   renderParentDashboard();
   showToast(`مرحباً ${parent.name}`, 'success', '👋');
 }
@@ -1116,21 +1163,10 @@ function clearDoneRequests() {
 }
 
 function clearAllRequests() {
-  if (!confirm('هل أنت متأكد من حذف جميع الطلبات الحالية؟ لا يمكن التراجع.')) return;
-  FDB.ref('live_calls').remove().then(() => {
-    DB.requests = [];
-    announcedIds.clear();
-    updateStats();
-    renderAdminRequestList();
-    showToast('تم حذف جميع الطلبات', 'danger', '🗑️');
-  });
-}
-
-function clearAllRequests() {
   if (!confirm('حذف جميع الطلبات الحالية والمكتملة؟ لا يمكن التراجع.')) return;
   FDB.ref('live_calls').remove();
-  FDB.ref('archive_calls').remove();
   DB.requests = [];
+  announcedIds.clear();
   renderAdminRequestList();
   updateStats();
   showToast('تم حذف جميع الطلبات', 'danger', '🗑️');
@@ -1323,6 +1359,140 @@ function liveRefresh() {
 /* ════════════════════════════════════════
    INIT
    ════════════════════════════════════════ */
+/* ════════════════════════════════════════
+   TAB VISIBILITY حسب نوع المستخدم
+   ════════════════════════════════════════ */
+function applyTabVisibility() {
+  const role = DB.userRole; // 'admin' | 'teacher' | 'parent' | null
+  const tabTeacher = document.querySelector('.nav-tab[data-screen="teacher"]');
+  const tabParent  = document.querySelector('.nav-tab[data-screen="parent"]');
+  const tabAdmin   = document.querySelector('.nav-tab[data-screen="admin"]');
+  // إعادة الكل أولاً
+  [tabTeacher, tabParent, tabAdmin].forEach(t => t && t.classList.remove('tab-hidden'));
+  if (role === 'teacher') {
+    // المعلم: يرى شاشته فقط
+    tabParent && tabParent.classList.add('tab-hidden');
+    tabAdmin  && tabAdmin.classList.add('tab-hidden');
+  } else if (role === 'parent') {
+    // ولي الأمر: يرى شاشته فقط
+    tabTeacher && tabTeacher.classList.add('tab-hidden');
+    tabAdmin   && tabAdmin.classList.add('tab-hidden');
+  }
+  // الأدمن وغير المسجّل: يرى الكل
+}
+
+/* ════════════════════════════════════════
+   ARCHIVE — أرشيف التقارير اليومية
+   ════════════════════════════════════════ */
+function generateAndArchiveReport() {
+  /* توليد التقرير في الشاشة */
+  generateReport();
+  /* حفظ نسخة في Firebase archives */
+  const today = new Date().toLocaleDateString('ar-SA',{year:'numeric',month:'2-digit',day:'2-digit'}).replace(/\//g,'-');
+  const dateKey = new Date().toISOString().slice(0,10);
+  const snap = {
+    date     : today,
+    dateKey  : dateKey,
+    savedAt  : Date.now(),
+    requests : DB.requests.map(r => ({
+      studentName: r.studentName,
+      classId    : r.classId,
+      parentName : r.parentName || '',
+      requestTime: r.requestTime,
+      exitTime   : r.exitTime || null,
+      status     : r.status,
+    })),
+  };
+  FDB.ref('daily_archives/' + dateKey).set(snap).then(() => {
+    showToast('✅ تم حفظ التقرير في الأرشيف', 'success', '📦');
+  });
+}
+
+function openArchive() {
+  document.getElementById('archiveModal').classList.remove('hidden');
+  loadArchive();
+}
+function closeArchive() {
+  document.getElementById('archiveModal').classList.add('hidden');
+}
+
+function loadArchive() {
+  const list = document.getElementById('archiveList');
+  list.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text-muted)">جارٍ التحميل…</div>';
+  FDB.ref('daily_archives').once('value', snap => {
+    const all = snap.val();
+    if (!all) {
+      list.innerHTML = '<div class="empty-state"><div class="ei">📦</div><p>لا توجد تقارير مؤرشفة بعد</p></div>';
+      return;
+    }
+    const days = Object.values(all).sort((a,b) => b.savedAt - a.savedAt);
+    list.innerHTML = days.map(day => {
+      const done    = day.requests.filter(r => r.status === 'done').length;
+      const pending = day.requests.filter(r => r.status === 'pending').length;
+      const rows = day.requests.map((r,i) => {
+        const reqT = new Date(r.requestTime).toLocaleTimeString('ar-SA',{hour:'2-digit',minute:'2-digit'});
+        const exT  = r.exitTime ? new Date(r.exitTime).toLocaleTimeString('ar-SA',{hour:'2-digit',minute:'2-digit'}) : '—';
+        return `<div class="arch-row">
+          <input type="checkbox" class="arch-check" data-day="${day.dateKey}" data-idx="${i}" id="arch-${day.dateKey}-${i}">
+          <span style="flex:1"><b>${r.studentName}</b> — ${r.classId}</span>
+          <span style="color:var(--text-muted);font-size:.78rem">${r.parentName || ''}</span>
+          <span style="color:var(--text-muted);font-size:.78rem">${reqT}</span>
+          <span style="color:var(--text-muted);font-size:.78rem">${exT}</span>
+          <span class="pill ${r.status==='done'?'pill-done':'pill-pending'}">${r.status==='done'?'✅ خرج':'⏳ معلق'}</span>
+        </div>`;
+      }).join('');
+      return `<div class="archive-day" id="archday-${day.dateKey}">
+        <div class="archive-day-header" onclick="toggleArchDay('${day.dateKey}')">
+          <span>
+            <input type="checkbox" class="arch-check" onclick="event.stopPropagation();toggleDaySelect('${day.dateKey}',this.checked)" style="margin-left:8px">
+            📅 ${day.date}
+          </span>
+          <span style="display:flex;align-items:center;gap:12px">
+            <span class="pill pill-done" style="font-size:.7rem">✅ ${done}</span>
+            <span class="pill pill-pending" style="font-size:.7rem">⏳ ${pending}</span>
+            <span style="font-size:.75rem;color:var(--text-muted)">▼</span>
+          </span>
+        </div>
+        <div class="archive-day-body" id="archbody-${day.dateKey}">${rows}</div>
+      </div>`;
+    }).join('');
+  });
+}
+
+function toggleArchDay(dateKey) {
+  const body = document.getElementById('archbody-' + dateKey);
+  if (body) body.classList.toggle('open');
+}
+
+function toggleDaySelect(dateKey, checked) {
+  document.querySelectorAll(`input[data-day="${dateKey}"]`).forEach(cb => cb.checked = checked);
+}
+
+function deleteSelectedArchive() {
+  /* جمع الأيام التي تم اختيار كل عناصرها */
+  const dayChecks = {};
+  document.querySelectorAll('.archive-day').forEach(dayEl => {
+    const dateKey = dayEl.id.replace('archday-','');
+    const all  = dayEl.querySelectorAll('input[data-idx]');
+    const chkd = dayEl.querySelectorAll('input[data-idx]:checked');
+    if (all.length > 0 && all.length === chkd.length) dayChecks[dateKey] = 'all';
+    else if (chkd.length > 0) dayChecks[dateKey] = 'partial';
+  });
+  const toDeleteAll = Object.keys(dayChecks).filter(k => dayChecks[k] === 'all');
+  if (!toDeleteAll.length) { showToast('لم تختر أي تقرير للحذف', 'danger'); return; }
+  if (!confirm(`حذف ${toDeleteAll.length} تقرير يومي؟`)) return;
+  Promise.all(toDeleteAll.map(k => FDB.ref('daily_archives/' + k).remove()))
+    .then(() => { showToast('تم الحذف', 'danger', '🗑️'); loadArchive(); });
+}
+
+function deleteAllArchive() {
+  if (!confirm('حذف جميع التقارير المؤرشفة نهائياً؟ لا يمكن التراجع.')) return;
+  FDB.ref('daily_archives').remove().then(() => {
+    showToast('تم حذف الأرشيف كاملاً', 'danger', '🗑️');
+    loadArchive();
+  });
+}
+
 (function init() {
   setInterval(liveRefresh, 1000);
   showScreen('teacher');
