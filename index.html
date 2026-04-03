@@ -494,9 +494,9 @@ body{font-family:'Cairo','Tajawal',sans-serif;background:var(--bg);color:var(--t
       <div class="card">
         <div class="card-body" style="padding:14px">
           <table class="data-table">
-            <thead><tr><th>الصف</th><th>المعلم</th><th>معلقة</th><th>مكتملة</th></tr></thead>
+            <thead><tr><th>الصف</th><th>المعلمون المنفّذون</th><th>📤 مطلوب</th><th>✅ موافق</th><th>⏳ معلق</th></tr></thead>
             <tbody id="classesStatusBody">
-              <tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:24px">لا توجد بيانات</td></tr>
+              <tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:24px">لا توجد بيانات</td></tr>
             </tbody>
           </table>
         </div>
@@ -711,6 +711,19 @@ function initFirebase() {
       renderParentDashboard();
   });
 
+  // استماع لإشعارات ولي الأمر
+  FDB.ref('parent_notifications').on('value', snap => {
+    if (!DB.loggedParent) return;
+    const allNotifs = snap.val() || {};
+    const myNotifs = allNotifs[DB.loggedParent.id];
+    if (!myNotifs) return;
+    // عرض الإشعارات غير المقروءة
+    const unread = Object.values(myNotifs).filter(n => !n.read);
+    if (unread.length > 0 && document.getElementById('screen-parent').classList.contains('active')) {
+      renderParentDashboard();
+    }
+  });
+
   // استماع لحالة النظام
   FDB.ref('system_control/manual').on('value', snap => {
     const manual = snap.val();
@@ -759,7 +772,37 @@ function setSystemActive(val) {
   FDB.ref('system_control/manual').set(val);
   applySystemStatus();
   showToast(val ? '✅ تم تشغيل النظام' : '⛔ تم إيقاف النظام', val ? 'success' : 'danger');
-  if (!val) generateReport();
+  if (!val) {
+    generateReport();
+    autoSaveDailyReport();
+  }
+}
+
+function autoSaveDailyReport() {
+  const today   = new Date().toLocaleDateString('ar-SA',{year:'numeric',month:'2-digit',day:'2-digit'}).replace(/\//g,'-');
+  const dateKey = new Date().toISOString().slice(0,10);
+  FDB.ref('daily_operations/' + dateKey).once('value', snap => {
+    const ops = snap.val() ? Object.values(snap.val()) : DB.requests;
+    const archiveSnap = {
+      date     : today,
+      dateKey  : dateKey,
+      savedAt  : Date.now(),
+      autoSaved: true,
+      requests : ops.map(r => ({
+        studentName: r.studentName || r.name || '',
+        classId    : r.classId    || '',
+        parentName : r.parentName || '',
+        requestTime: r.requestTime || r.ts || 0,
+        exitTime   : r.exitTime   || null,
+        status     : r.status     || 'pending',
+        teacherName: r.teacherName|| '',
+        action     : r.action     || (r.status === 'done' ? 'confirmed' : 'requested'),
+      })),
+    };
+    FDB.ref('daily_archives/' + dateKey).set(archiveSnap).then(() => {
+      showToast('📦 تم حفظ التقرير اليومي تلقائياً في الأرشيف', 'success', '📦');
+    });
+  });
 }
 
 /* ════════════════════════════════════════
@@ -930,11 +973,28 @@ function confirmStudentLeft(reqId, classId) {
   FDB.ref('live_calls/' + classId + '/' + reqId).once('value', snap => {
     const data = snap.val();
     if (!data) return;
-    // أرشفة الطلب
-    FDB.ref('archive_calls').push({ ...data, status: 'done', exitTime: Date.now(), confirmedByTeacher: true });
-    // حذف من الطلبات الحية
-    FDB.ref('live_calls/' + classId + '/' + reqId).remove();
+    const exitTime = Date.now();
+    const teacherName = DB.loggedTeacher ? DB.loggedTeacher.name : '—';
+    // أرشفة الطلب مع بيانات المعلم الذي وافق
+    const archiveEntry = {
+      ...data,
+      status            : 'done',
+      exitTime          : exitTime,
+      confirmedByTeacher: true,
+      teacherName       : teacherName,
+      archivedAt        : exitTime,
+    };
+    FDB.ref('archive_calls').push(archiveEntry);
+    // حفظ في سجل اليوم الدائم
+    const dateKey = new Date().toISOString().slice(0,10);
+    FDB.ref('daily_operations/' + dateKey).push(archiveEntry);
+    // تحديث حالة الطلب في live_calls إلى done مع وقت الخروج
+    FDB.ref('live_calls/' + classId + '/' + reqId).update({
+      status: 'done', exitTime, confirmedByTeacher: true, teacherName
+    });
     showToast(`✅ تم تسجيل خروج ${data.name || data.studentName}`, 'success', '✅');
+    // إشعار ولي الأمر بخروج الطالب
+    notifyParentStudentLeft(data.parentId, data.name || data.studentName, classId, teacherName);
   });
 }
 
@@ -975,14 +1035,25 @@ function renderParentDashboard() {
 
   const myReqs = DB.requests.filter(r => r.parentId === p.id);
 
-  // إشعارات
+  // إشعارات ولي الأمر — من Firebase + من الطلبات الحية
   const notifBox = document.getElementById('parentNotifications');
   notifBox.innerHTML = '';
-  myReqs.filter(r => r.status === 'done' && r.confirmedByTeacher).forEach(r => {
-    notifBox.innerHTML += `<div class="parent-notif-box success">✅ <b>${r.studentName}</b> تم إخراجه — انتظره أمام المدرسة</div>`;
+  // إشعارات الخروج المؤكدة من Firebase
+  FDB.ref('parent_notifications/' + p.id).orderByChild('ts').limitToLast(10).once('value', nSnap => {
+    const nData = nSnap.val();
+    if (nData) {
+      Object.values(nData).sort((a,b)=>b.ts-a.ts).forEach(n => {
+        const timeStr = new Date(n.ts).toLocaleTimeString('ar-SA',{hour:'2-digit',minute:'2-digit'});
+        notifBox.innerHTML += `<div class="parent-notif-box success">
+          🏃 <b>${n.studentName}</b> خرج وهو في طريقه إليك
+          <span style="font-size:.75rem;opacity:.8;margin-right:8px">— ${timeStr}</span>
+        </div>`;
+      });
+    }
   });
+  // إشعارات الطلبات المعلقة
   myReqs.filter(r => r.status === 'pending').forEach(r => {
-    notifBox.innerHTML += `<div class="parent-notif-box waiting">⏳ <b>${r.studentName}</b> — الطلب وصل للمعلم</div>`;
+    notifBox.innerHTML += `<div class="parent-notif-box waiting">⏳ <b>${r.studentName}</b> — الطلب وصل للمعلم، بانتظار الموافقة</div>`;
   });
 
   const requestedMap = {};
@@ -1040,21 +1111,25 @@ function toggleChildSelect(childId) {
 
 function submitExitRequest() {
   if (!DB.loggedParent || selectedChildren.size === 0) return;
+  const dateKey = new Date().toISOString().slice(0,10);
   selectedChildren.forEach(childId => {
     const child = DB.loggedParent.children.find(c => c.id === childId);
     if (!child) return;
     const classId = child.classId;
-    FDB.ref('live_calls/' + classId).push({
-      name      : child.name,
+    const reqData = {
+      name       : child.name,
       studentName: child.name,
-      studentId : child.id,
-      classId   : classId,
-      parentId  : DB.loggedParent.id,
-      parentName: DB.loggedParent.name,
-      ts        : Date.now(),
+      studentId  : child.id,
+      classId    : classId,
+      parentId   : DB.loggedParent.id,
+      parentName : DB.loggedParent.name,
+      ts         : Date.now(),
       requestTime: Date.now(),
-      status    : 'pending',
-    });
+      status     : 'pending',
+    };
+    FDB.ref('live_calls/' + classId).push(reqData);
+    // حفظ الطلب في سجل اليوم الدائم
+    FDB.ref('daily_operations/' + dateKey).push({ ...reqData, action: 'request_submitted', archivedAt: Date.now() });
   });
   selectedChildren.clear();
   showToast('تم إرسال طلب الخروج للمعلم', 'success', '📤');
@@ -1111,18 +1186,36 @@ function renderAdminRequestList() {
 function renderClassesStatus() {
   const tbody = document.getElementById('classesStatusBody');
   if (!DB.classes.length) {
-    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:24px">لا توجد بيانات</td></tr>'; return;
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:24px">لا توجد بيانات</td></tr>'; return;
   }
-  tbody.innerHTML = DB.classes.map(cls => {
-    const pending = DB.requests.filter(r => r.classId === cls.id && r.status === 'pending').length;
-    const done    = DB.requests.filter(r => r.classId === cls.id && r.status === 'done').length;
-    return `<tr>
-      <td><b>${cls.name || cls.id}</b></td>
-      <td>${teacherForClass(cls.id)}</td>
-      <td>${pending > 0 ? `<span class="pill pill-pending">${pending}</span>` : '—'}</td>
-      <td>${done > 0 ? `<span class="pill pill-done">${done}</span>` : '—'}</td>
-    </tr>`;
-  }).join('');
+  // جمع المعلمين الذين وافقوا فعلياً لكل صف من daily_operations
+  const dateKey = new Date().toISOString().slice(0,10);
+  FDB.ref('daily_operations/' + dateKey).once('value', snap => {
+    const opsRaw = snap.val() ? Object.values(snap.val()) : [];
+    tbody.innerHTML = DB.classes.map(cls => {
+      const allReqs   = DB.requests.filter(r => r.classId === cls.id);
+      const pending   = allReqs.filter(r => r.status === 'pending').length;
+      const done      = allReqs.filter(r => r.status === 'done').length;
+      const total     = allReqs.length;
+      // المعلمون الذين وافقوا فعلياً (من live + ops)
+      const confirmedOps = opsRaw.filter(o => o.classId === cls.id && o.status === 'done' && o.teacherName);
+      const confirmedLive = allReqs.filter(r => r.status === 'done' && r.teacherName);
+      const teacherNames = [...new Set([
+        ...confirmedLive.map(r => r.teacherName).filter(Boolean),
+        ...confirmedOps.map(o => o.teacherName).filter(Boolean),
+      ])];
+      const teachersStr = teacherNames.length
+        ? teacherNames.map(t => `<span style="display:inline-block;background:rgba(10,77,140,.08);border-radius:6px;padding:2px 8px;font-size:.75rem;margin:2px;font-weight:700">👨‍🏫 ${t}</span>`).join('')
+        : '<span style="color:var(--text-muted);font-size:.78rem">—</span>';
+      return `<tr>
+        <td><b>${cls.name || cls.id}</b></td>
+        <td style="max-width:200px">${teachersStr}</td>
+        <td>${total > 0 ? `<span class="pill" style="background:rgba(10,77,140,.1);color:var(--primary)">${total}</span>` : '—'}</td>
+        <td>${done > 0 ? `<span class="pill pill-done">${done}</span>` : '—'}</td>
+        <td>${pending > 0 ? `<span class="pill pill-pending">${pending}</span>` : '—'}</td>
+      </tr>`;
+    }).join('');
+  });
 }
 
 function renderStorageStatus() {
@@ -1301,20 +1394,51 @@ function generateReport() {
   document.getElementById('reportDate').textContent =
     now.toLocaleDateString('ar-SA', {weekday:'long',year:'numeric',month:'long',day:'numeric'}) +
     ' | ' + now.toLocaleTimeString('ar-SA');
-  const total = DB.requests.length, done = DB.requests.filter(r => r.status==='done').length,
-        pending = DB.requests.filter(r => r.status==='pending').length;
-  document.getElementById('reportStats').innerHTML = `
-    <div class="stat-card"><div class="stat-icon blue">📋</div><div class="stat-info"><h3>${total}</h3><p>إجمالي</p></div></div>
-    <div class="stat-card"><div class="stat-icon green">✅</div><div class="stat-info"><h3>${done}</h3><p>تم الخروج</p></div></div>
-    <div class="stat-card"><div class="stat-icon orange">⏳</div><div class="stat-info"><h3>${pending}</h3><p>معلقة</p></div></div>`;
-  const tbody = document.getElementById('reportBody');
-  tbody.innerHTML = DB.requests.map((r, i) => {
-    const reqT = new Date(r.requestTime).toLocaleTimeString('ar-SA',{hour:'2-digit',minute:'2-digit'});
-    const exT  = r.exitTime ? new Date(r.exitTime).toLocaleTimeString('ar-SA',{hour:'2-digit',minute:'2-digit'}) : '—';
-    return `<tr><td>${i+1}</td><td><b>${r.studentName}</b></td><td>${r.classId}</td><td>${r.parentName||''}</td>
-      <td>${reqT}</td><td>${exT}</td>
-      <td>${r.status==='done'?'<span class="pill pill-done">✅ خرج</span>':'<span class="pill pill-pending">⏳ معلق</span>'}</td></tr>`;
-  }).join('');
+  const dateKey = now.toISOString().slice(0,10);
+  // جلب جميع العمليات من daily_operations (الأرشيف الكامل لليوم)
+  FDB.ref('daily_operations/' + dateKey).once('value', snap => {
+    const opsRaw = snap.val() ? Object.values(snap.val()) : [];
+    // دمج مع الطلبات الحية الحالية
+    const liveIds = new Set(DB.requests.map(r => r.studentId + '_' + r.requestTime));
+    const opsOnly = opsRaw.filter(o => !liveIds.has(o.studentId + '_' + (o.requestTime || o.ts)));
+    const allOps = [...DB.requests, ...opsOnly];
+    // إزالة التكرار بناءً على firebaseKey أو مجموعة studentId+requestTime
+    const seen = new Set();
+    const unique = allOps.filter(r => {
+      const key = r.firebaseKey || (r.studentId + '_' + (r.requestTime || r.ts));
+      if (seen.has(key)) return false;
+      seen.add(key); return true;
+    });
+    const sorted = unique.sort((a,b) => (a.requestTime||a.ts||0) - (b.requestTime||b.ts||0));
+    const total   = sorted.length;
+    const done    = sorted.filter(r => r.status==='done').length;
+    const pending = sorted.filter(r => r.status==='pending').length;
+    document.getElementById('reportStats').innerHTML = `
+      <div class="stat-card"><div class="stat-icon blue">📋</div><div class="stat-info"><h3>${total}</h3><p>إجمالي</p></div></div>
+      <div class="stat-card"><div class="stat-icon green">✅</div><div class="stat-info"><h3>${done}</h3><p>تم الخروج</p></div></div>
+      <div class="stat-card"><div class="stat-icon orange">⏳</div><div class="stat-info"><h3>${pending}</h3><p>معلقة</p></div></div>`;
+    const tbody = document.getElementById('reportBody');
+    tbody.innerHTML = sorted.map((r, i) => {
+      const reqT = new Date(r.requestTime||r.ts||0).toLocaleTimeString('ar-SA',{hour:'2-digit',minute:'2-digit'});
+      const exT  = r.exitTime ? new Date(r.exitTime).toLocaleTimeString('ar-SA',{hour:'2-digit',minute:'2-digit'}) : '—';
+      const teacher = r.teacherName || '';
+      return `<tr>
+        <td>${i+1}</td>
+        <td><b>${r.studentName||r.name||''}</b></td>
+        <td>${r.classId||''}</td>
+        <td>${r.parentName||''}</td>
+        <td>${reqT}</td>
+        <td>${exT}</td>
+        <td>${teacher ? `<span style="font-size:.78rem;color:var(--primary)">👨‍🏫 ${teacher}</span>` : '—'}</td>
+        <td>${r.status==='done'?'<span class="pill pill-done">✅ خرج</span>':'<span class="pill pill-pending">⏳ معلق</span>'}</td>
+      </tr>`;
+    }).join('');
+    // تحديث رأس الجدول ليشمل عمود المعلم
+    const thead = document.querySelector('#reportSection .data-table thead tr');
+    if (thead && thead.children.length < 8) {
+      thead.innerHTML = '<th>#</th><th>اسم الطالب</th><th>الصف</th><th>ولي الأمر</th><th>وقت الطلب</th><th>وقت الخروج</th><th>المعلم</th><th>الحالة</th>';
+    }
+  });
 }
 function printReport() { window.print(); }
 
@@ -1381,31 +1505,70 @@ function applyTabVisibility() {
   // الأدمن وغير المسجّل: يرى الكل
 }
 
+
+/* ════════════════════════════════════════
+   PARENT NOTIFICATIONS — إشعارات ولي الأمر
+   ════════════════════════════════════════ */
+function notifyParentStudentLeft(parentId, studentName, classId, teacherName) {
+  if (!parentId) return;
+  const notifData = {
+    parentId   : parentId,
+    studentName: studentName,
+    classId    : classId,
+    teacherName: teacherName || '—',
+    message    : `خرج ${studentName} من صف ${classId} وهو في طريقه إليك`,
+    ts         : Date.now(),
+    read       : false,
+  };
+  FDB.ref('parent_notifications/' + parentId).push(notifData);
+  // إذا كان ولي الأمر مسجّلاً دخوله الآن على هذا الجهاز
+  if (DB.loggedParent && DB.loggedParent.id === parentId) {
+    showParentExitNotification(studentName, classId, teacherName);
+    renderParentDashboard();
+  }
+}
+
+function showParentExitNotification(studentName, classId, teacherName) {
+  // إشعار مرئي بارز لولي الأمر
+  const notifDiv = document.createElement('div');
+  notifDiv.style.cssText = `
+    position:fixed;top:80px;right:20px;left:20px;max-width:420px;margin:auto;
+    background:linear-gradient(135deg,#1db87e,#17a871);color:#fff;
+    border-radius:16px;padding:18px 20px;z-index:9998;
+    box-shadow:0 12px 40px rgba(29,184,126,.45);
+    animation:toast-in .4s cubic-bezier(.25,.8,.25,1) both;
+    display:flex;align-items:center;gap:14px;`;
+  notifDiv.innerHTML = `
+    <div style="font-size:40px">🏃</div>
+    <div style="flex:1">
+      <div style="font-size:1.05rem;font-weight:800;margin-bottom:4px">🎒 ${studentName} خرج الآن!</div>
+      <div style="font-size:.85rem;opacity:.9">من صف ${classId} — تأكيد من المعلم ${teacherName}</div>
+      <div style="font-size:.8rem;margin-top:4px;opacity:.85">📍 الطالب في طريقه إليك الآن</div>
+    </div>
+    <button onclick="this.parentElement.remove()" style="background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:8px;padding:6px 10px;cursor:pointer;font-size:14px">✕</button>`;
+  document.body.appendChild(notifDiv);
+  // تشغيل صوت تنبيه خفيف
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.connect(g); g.connect(ctx.destination);
+    o.frequency.value = 880; o.type = 'sine';
+    g.gain.setValueAtTime(0.5, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
+    o.start(); o.stop(ctx.currentTime + 0.6);
+  } catch(e) {}
+  // إزالة تلقائية بعد 10 ثوانٍ
+  setTimeout(() => notifDiv.remove(), 10000);
+}
+
 /* ════════════════════════════════════════
    ARCHIVE — أرشيف التقارير اليومية
    ════════════════════════════════════════ */
 function generateAndArchiveReport() {
   /* توليد التقرير في الشاشة */
   generateReport();
-  /* حفظ نسخة في Firebase archives */
-  const today = new Date().toLocaleDateString('ar-SA',{year:'numeric',month:'2-digit',day:'2-digit'}).replace(/\//g,'-');
-  const dateKey = new Date().toISOString().slice(0,10);
-  const snap = {
-    date     : today,
-    dateKey  : dateKey,
-    savedAt  : Date.now(),
-    requests : DB.requests.map(r => ({
-      studentName: r.studentName,
-      classId    : r.classId,
-      parentName : r.parentName || '',
-      requestTime: r.requestTime,
-      exitTime   : r.exitTime || null,
-      status     : r.status,
-    })),
-  };
-  FDB.ref('daily_archives/' + dateKey).set(snap).then(() => {
-    showToast('✅ تم حفظ التقرير في الأرشيف', 'success', '📦');
-  });
+  /* حفظ نسخة في Firebase archives من daily_operations (جميع العمليات) */
+  autoSaveDailyReport();
 }
 
 function openArchive() {
@@ -1430,7 +1593,7 @@ function loadArchive() {
       const done    = day.requests.filter(r => r.status === 'done').length;
       const pending = day.requests.filter(r => r.status === 'pending').length;
       const rows = day.requests.map((r,i) => {
-        const reqT = new Date(r.requestTime).toLocaleTimeString('ar-SA',{hour:'2-digit',minute:'2-digit'});
+        const reqT = new Date(r.requestTime||0).toLocaleTimeString('ar-SA',{hour:'2-digit',minute:'2-digit'});
         const exT  = r.exitTime ? new Date(r.exitTime).toLocaleTimeString('ar-SA',{hour:'2-digit',minute:'2-digit'}) : '—';
         return `<div class="arch-row">
           <input type="checkbox" class="arch-check" data-day="${day.dateKey}" data-idx="${i}" id="arch-${day.dateKey}-${i}">
@@ -1438,6 +1601,7 @@ function loadArchive() {
           <span style="color:var(--text-muted);font-size:.78rem">${r.parentName || ''}</span>
           <span style="color:var(--text-muted);font-size:.78rem">${reqT}</span>
           <span style="color:var(--text-muted);font-size:.78rem">${exT}</span>
+          ${r.teacherName ? `<span style="font-size:.75rem;color:var(--primary)">👨‍🏫 ${r.teacherName}</span>` : '<span></span>'}
           <span class="pill ${r.status==='done'?'pill-done':'pill-pending'}">${r.status==='done'?'✅ خرج':'⏳ معلق'}</span>
         </div>`;
       }).join('');
