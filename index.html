@@ -291,14 +291,14 @@ body{font-family:'Cairo','Tajawal',sans-serif;background:var(--bg);color:var(--t
     </div>
   </div>
   <nav class="nav-tabs">
-    <div class="nav-tab active" onclick="gotoTeacher()" data-screen="teacher">👨‍🏫 المعلم</div>
-    <div class="nav-tab" onclick="showScreen('parent')" data-screen="parent">👪 ولي الأمر</div>
+    <div class="nav-tab" onclick="gotoTeacher()" data-screen="teacher">👨‍🏫 المعلم</div>
+    <div class="nav-tab active" onclick="showScreen('parent')" data-screen="parent">👪 ولي الأمر</div>
     <div class="nav-tab" onclick="gotoAdmin()" data-screen="admin">🛡️ الإدارة</div>
   </nav>
 </header>
 
 <!-- ══ TEACHER SCREEN ══ -->
-<div class="screen active" id="screen-teacher">
+<div class="screen" id="screen-teacher">
   <div id="teacherSystemOff" style="display:none">
     <div class="card"><div class="system-inactive-msg">
       <div class="big-icon">🔒</div>
@@ -307,6 +307,23 @@ body{font-family:'Cairo','Tajawal',sans-serif;background:var(--bg);color:var(--t
     </div></div>
   </div>
   <div id="teacherContent">
+
+    <!-- رسالة ترحيب قبل تسجيل الدخول -->
+    <div id="teacherGuestWelcome" style="display:flex;align-items:center;justify-content:center;min-height:340px">
+      <div style="text-align:center;max-width:420px">
+        <div style="font-size:72px;margin-bottom:16px;line-height:1">👨‍🏫</div>
+        <h2 style="font-size:1.5rem;font-weight:900;color:var(--primary);margin-bottom:10px">أهلاً بك في نظام المناداة</h2>
+        <p style="color:var(--text-muted);font-size:.95rem;line-height:1.8;margin-bottom:24px">
+          يُمكّنك هذا النظام من استقبال طلبات خروج الطلاب ومتابعتها بشكل فوري<br>سجّل دخولك للبدء
+        </p>
+        <button class="btn btn-primary btn-lg" onclick="gotoTeacher()" style="padding:14px 40px;font-size:1rem">
+          🔑 تسجيل دخول المعلم
+        </button>
+      </div>
+    </div>
+
+    <!-- محتوى ما بعد تسجيل الدخول -->
+    <div id="teacherLoggedInContent" style="display:none">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
       <div class="section-title" style="margin-bottom:0">👨‍🏫 اختر الشعبة التي تتواجد بها</div>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
@@ -344,13 +361,23 @@ body{font-family:'Cairo','Tajawal',sans-serif;background:var(--bg);color:var(--t
         </div>
       </div>
     </div>
+    </div><!-- end teacherLoggedInContent -->
   </div>
 </div>
 
 <!-- ══ PARENT SCREEN ══ -->
-<div class="screen" id="screen-parent">
+<div class="screen active" id="screen-parent">
+  <!-- رسالة ترحيب ولي الأمر (تظهر دائماً فوق باقي المحتوى) -->
+  <div id="parentHeroWelcome" style="text-align:center;padding:32px 16px 0">
+    <div style="font-size:64px;line-height:1;margin-bottom:12px">👪</div>
+    <h2 style="font-size:1.4rem;font-weight:900;color:var(--primary);margin-bottom:8px">مرحباً بك في بوابة ولي الأمر</h2>
+    <p style="color:var(--text-muted);font-size:.9rem;max-width:400px;margin:0 auto 20px;line-height:1.7">
+      يمكنك متابعة طلبات خروج أبنائك من المدرسة والحصول على إشعار فوري عند خروجهم
+    </p>
+  </div>
+
   <div id="parentSystemOff" style="display:none">
-    <div class="card" style="max-width:480px;margin:40px auto"><div class="system-inactive-msg">
+    <div class="card" style="max-width:480px;margin:20px auto"><div class="system-inactive-msg">
       <div class="big-icon">⏰</div>
       <h3>النظام غير مفعل حالياً</h3>
       <p>يمكنك طلب خروج أبنائك من <b>11:30 ص</b> حتى <b>2:30 م</b></p>
@@ -894,7 +921,15 @@ function showScreen(id) {
    TEACHER SCREEN
    ════════════════════════════════════════ */
 function renderTeacherScreen() {
-  if (!DB.loggedTeacher) return;
+  const guestWelcome   = document.getElementById('teacherGuestWelcome');
+  const loggedContent  = document.getElementById('teacherLoggedInContent');
+  if (!DB.loggedTeacher) {
+    if (guestWelcome)  guestWelcome.style.display  = 'flex';
+    if (loggedContent) loggedContent.style.display = 'none';
+    return;
+  }
+  if (guestWelcome)  guestWelcome.style.display  = 'none';
+  if (loggedContent) loggedContent.style.display = 'block';
   document.getElementById('teacherWelcome').textContent = `مرحباً، ${DB.loggedTeacher.name}`;
   const myClasses = DB.classes.filter(c => DB.loggedTeacher.classes.includes(c.id));
   const grid = document.getElementById('classesGrid');
@@ -1016,6 +1051,8 @@ function parentLogin() {
   DB.userRole = 'parent';
   document.getElementById('parentLogin').style.display     = 'none';
   document.getElementById('parentDashboard').style.display = 'block';
+  const hero = document.getElementById('parentHeroWelcome');
+  if (hero) hero.style.display = 'none';
   /* ولي الأمر: أخفِ تاب المعلم والإدارة */
   applyTabVisibility();
   renderParentDashboard();
@@ -1030,6 +1067,8 @@ function parentLogout() {
   document.getElementById('parentLogin').style.display     = 'block';
   document.getElementById('parentDashboard').style.display = 'none';
   document.getElementById('parentIdInput').value = '';
+  const hero = document.getElementById('parentHeroWelcome');
+  if (hero) hero.style.display = 'block';
   const popup = document.getElementById('parentExitPopup'); if(popup) popup.remove();
 }
 
@@ -1757,7 +1796,7 @@ function deleteAllArchive() {
 
 (function init() {
   setInterval(liveRefresh, 1000);
-  showScreen('teacher');
+  showScreen('parent');
   initFirebase();
 })();
 </script>
