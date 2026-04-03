@@ -963,28 +963,40 @@ function confirmStudentLeft(reqId, classId) {
   FDB.ref('live_calls/' + classId + '/' + reqId).once('value', snap => {
     const data = snap.val();
     if (!data) return;
-    const exitTime = Date.now();
+    const exitTime   = Date.now();
     const teacherName = DB.loggedTeacher ? DB.loggedTeacher.name : '—';
-    // أرشفة الطلب مع بيانات المعلم الذي وافق
-    const archiveEntry = {
-      ...data,
-      status            : 'done',
+    const studentName = data.name || data.studentName || '';
+
+    // السجل النهائي بحالة done
+    const doneEntry = {
+      studentName       : studentName,
+      name              : studentName,
+      studentId         : data.studentId || reqId,
+      classId           : classId,
+      parentId          : data.parentId  || '',
+      parentName        : data.parentName || '',
+      requestTime       : data.requestTime || data.ts || Date.now(),
       exitTime          : exitTime,
+      status            : 'done',
       confirmedByTeacher: true,
       teacherName       : teacherName,
       archivedAt        : exitTime,
     };
-    FDB.ref('archive_calls').push(archiveEntry);
-    // حفظ في سجل اليوم الدائم
+
+    // 1) حفظ في archive_calls
+    FDB.ref('archive_calls').push(doneEntry);
+
+    // 2) حفظ في daily_operations بـ status=done
     const dateKey = new Date().toISOString().slice(0,10);
-    FDB.ref('daily_operations/' + dateKey).push(archiveEntry);
-    // تحديث حالة الطلب في live_calls إلى done مع وقت الخروج
-    FDB.ref('live_calls/' + classId + '/' + reqId).update({
-      status: 'done', exitTime, confirmedByTeacher: true, teacherName
-    });
-    showToast(`✅ تم تسجيل خروج ${data.name || data.studentName}`, 'success', '✅');
-    // إشعار ولي الأمر بخروج الطالب
-    notifyParentStudentLeft(data.parentId, data.name || data.studentName, classId, teacherName);
+    FDB.ref('daily_operations/' + dateKey).push(doneEntry);
+
+    // 3) حذف من live_calls نهائياً (لا update — حذف كامل)
+    FDB.ref('live_calls/' + classId + '/' + reqId).remove();
+
+    showToast(`✅ تم تسجيل خروج ${studentName}`, 'success', '✅');
+
+    // 4) إشعار ولي الأمر
+    notifyParentStudentLeft(data.parentId, studentName, classId, teacherName);
   });
 }
 
@@ -1396,21 +1408,36 @@ function generateReport() {
     now.toLocaleDateString('ar-SA', {weekday:'long',year:'numeric',month:'long',day:'numeric'}) +
     ' | ' + now.toLocaleTimeString('ar-SA');
   const dateKey = now.toISOString().slice(0,10);
-  // جلب جميع العمليات من daily_operations (الأرشيف الكامل لليوم)
+  // جلب جميع العمليات المؤرشفة (done) + الطلبات الحية الحالية (pending)
   FDB.ref('daily_operations/' + dateKey).once('value', snap => {
     const opsRaw = snap.val() ? Object.values(snap.val()) : [];
-    // دمج مع الطلبات الحية الحالية
-    const liveIds = new Set(DB.requests.map(r => r.studentId + '_' + r.requestTime));
-    const opsOnly = opsRaw.filter(o => !liveIds.has(o.studentId + '_' + (o.requestTime || o.ts)));
-    const allOps = [...DB.requests, ...opsOnly];
-    // إزالة التكرار بناءً على firebaseKey أو مجموعة studentId+requestTime
-    const seen = new Set();
-    const unique = allOps.filter(r => {
-      const key = r.firebaseKey || (r.studentId + '_' + (r.requestTime || r.ts));
-      if (seen.has(key)) return false;
-      seen.add(key); return true;
+
+    // الطلبات الحية الحالية (pending فقط — لأن done تُحذف من live_calls)
+    const livePending = DB.requests.filter(r => r.status === 'pending');
+
+    // من daily_operations: خذ آخر سجل لكل طالب (بناءً على studentId)
+    // لأن نفس الطالب قد يكون له سجل pending ثم سجل done
+    const opsByStudent = {};
+    opsRaw.forEach(o => {
+      const sid = o.studentId || (o.name + '_' + o.classId);
+      const existing = opsByStudent[sid];
+      // نفضّل سجل done على pending، وإلا الأحدث
+      if (!existing ||
+          (o.status === 'done' && existing.status !== 'done') ||
+          (o.status === existing.status && (o.archivedAt||o.exitTime||o.requestTime||0) > (existing.archivedAt||existing.exitTime||existing.requestTime||0))) {
+        opsByStudent[sid] = o;
+      }
     });
-    const sorted = unique.sort((a,b) => (a.requestTime||a.ts||0) - (b.requestTime||b.ts||0));
+    const archivedOps = Object.values(opsByStudent);
+
+    // الطلبات الحية التي لا يوجد لها سجل في الأرشيف بعد
+    const archivedStudentIds = new Set(archivedOps.map(o => o.studentId || (o.name + '_' + o.classId)));
+    const pendingNotArchived = livePending.filter(r =>
+      !archivedStudentIds.has(r.studentId || (r.studentName + '_' + r.classId))
+    );
+
+    const allOps = [...archivedOps, ...pendingNotArchived];
+    const sorted = allOps.sort((a,b) => (a.requestTime||a.ts||0) - (b.requestTime||b.ts||0));
     const total   = sorted.length;
     const done    = sorted.filter(r => r.status==='done').length;
     const pending = sorted.filter(r => r.status==='pending').length;
@@ -1519,21 +1546,38 @@ function startParentNotifListener(parentId) {
     parentNotifListenerRef.off();
     parentNotifListenerRef = null;
   }
-  parentNotifListenerRef = FDB.ref('parent_notifications/' + parentId);
-  // نتتبع آخر ts شاهدناه لنكشف الجديد فقط
-  let lastSeenTs = Date.now();
-  parentNotifListenerRef.on('child_added', snap => {
+
+  const ref = FDB.ref('parent_notifications/' + parentId);
+  parentNotifListenerRef = ref;
+  const loginTime = Date.now();
+  // نجمع مفاتيح الإشعارات الموجودة مسبقاً لنتجاهلها
+  const existingKeys = new Set();
+  let initialLoadDone = false;
+
+  // أولاً: اقرأ الإشعارات الموجودة حالياً دون إظهار popup
+  ref.once('value', snap => {
+    if (snap.val()) Object.keys(snap.val()).forEach(k => existingKeys.add(k));
+    initialLoadDone = true;
+    // عرض إشعارات اليوم في الصفحة بدون popup
+    renderParentDashboard();
+  });
+
+  // ثانياً: استمع للإضافات الجديدة فقط
+  ref.on('child_added', snap => {
+    if (!initialLoadDone) return; // انتظر حتى ينتهي التحميل الأولي
+    if (existingKeys.has(snap.key)) return; // تجاهل القديم
+    existingKeys.add(snap.key);
     const n = snap.val();
     if (!n || !n.ts) return;
-    // فقط الإشعارات الجديدة (بعد وقت تسجيل الدخول)
-    if (n.ts <= lastSeenTs - 2000) return;
-    lastSeenTs = n.ts;
+    // فقط إشعارات أُضيفت بعد تسجيل الدخول
+    if (n.ts < loginTime - 3000) return;
+    // إظهار popup الإشعار
     showParentExitNotification(n.studentName, n.classId, n.teacherName);
-    // تحديث صندوق الإشعارات في الصفحة
+    // تحديث قائمة الإشعارات في الصفحة
     setTimeout(() => {
       if (DB.loggedParent && document.getElementById('screen-parent').classList.contains('active'))
         renderParentDashboard();
-    }, 300);
+    }, 500);
   });
 }
 
@@ -1547,15 +1591,13 @@ function notifyParentStudentLeft(parentId, studentName, classId, teacherName) {
     ts         : Date.now(),
     read       : false,
   };
-  // حفظ في Firebase
-  FDB.ref('parent_notifications/' + parentId).push(notifData)
-    .then(() => {
-      // إذا كان ولي الأمر مسجلاً دخوله على هذا الجهاز نفسه → إشعار فوري
-      if (DB.loggedParent && String(DB.loggedParent.id) === String(parentId)) {
-        showParentExitNotification(studentName, classId, teacherName);
-        setTimeout(() => renderParentDashboard(), 300);
-      }
-    });
+  // حفظ في Firebase — المستمع child_added سيُطلق الـ popup تلقائياً
+  FDB.ref('parent_notifications/' + String(parentId)).push(notifData);
+  // إذا كان المعلم وولي الأمر على نفس الجهاز → popup فوري بدون انتظار Firebase
+  if (DB.loggedParent && String(DB.loggedParent.id) === String(parentId)) {
+    showParentExitNotification(studentName, classId, teacherName);
+    setTimeout(() => renderParentDashboard(), 400);
+  }
 }
 
 function showParentExitNotification(studentName, classId, teacherName) {
