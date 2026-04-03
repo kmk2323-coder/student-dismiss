@@ -1087,26 +1087,8 @@ function renderParentDashboard() {
   myReqs.filter(r => r.status === 'pending').forEach(r => {
     pendingHtml += `<div class="parent-notif-box waiting">⏳ <b>${r.studentName}</b> — الطلب وصل للمعلم، بانتظار الموافقة</div>`;
   });
-  notifBox.innerHTML = pendingHtml + '<div id="parentExitNotifs"></div>';
-  // إشعارات الخروج المؤكدة من Firebase (غير متزامنة)
-  FDB.ref('parent_notifications/' + p.id).orderByChild('ts').limitToLast(5).once('value', nSnap => {
-    const nData = nSnap.val();
-    const exitBox = document.getElementById('parentExitNotifs');
-    if (!exitBox) return;
-    if (nData) {
-      const today = new Date().toISOString().slice(0,10);
-      const todayNotifs = Object.values(nData)
-        .filter(n => new Date(n.ts).toISOString().slice(0,10) === today)
-        .sort((a,b) => b.ts - a.ts);
-      exitBox.innerHTML = todayNotifs.map(n => {
-        const timeStr = new Date(n.ts).toLocaleTimeString('ar-SA',{hour:'2-digit',minute:'2-digit'});
-        return `<div class="parent-notif-box success">
-          🏃 <b>${n.studentName}</b> خرج من صف ${n.classId} وهو في طريقه إليك
-          <span style="font-size:.75rem;opacity:.8;margin-right:8px">⏰ ${timeStr}</span>
-        </div>`;
-      }).join('');
-    }
-  });
+  notifBox.innerHTML = pendingHtml;
+  // إشعارات الخروج تظهر فقط كـ popup مؤقت (لا قائمة دائمة)
 
   const requestedMap = {};
   myReqs.forEach(r => {
